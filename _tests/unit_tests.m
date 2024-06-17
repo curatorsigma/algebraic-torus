@@ -417,7 +417,7 @@ procedure create_EtaleAlgebra()
 
 
     // check the constructor from a realized AlgMat
-    QQ := InvolutiveRing(Rationals());
+    QQ := TrivialInvolutiveRing(Rationals());
     M := MatrixAlgebra(QQ,2);
     x := M![0,-1,1,0];
     y := M![2,-3,3,2];
@@ -454,7 +454,8 @@ procedure create_EtaleAlgebra()
     assert alg_to_real(Inverse(alg_to_real)(Basis(A)[1])) eq Basis(A)[1];
 
     // test redefinition with involution
-    base := InvolutiveRing(QuadraticField(7));
+    base := TrivialInvolutiveRing(QuadraticField(7));
+    assert IsInvolutive(base);
     M := MatrixAlgebra(base,2);
     x := M![0,-1,1,0];
     y := M![2,-3,3,2];
@@ -617,7 +618,7 @@ end procedure;
 procedure test_Rng_inv_extension()
     // trivial ring:
     Z := Integers();
-    Z := InvolutiveRing(Z);
+    Z := TrivialInvolutiveRing(Z);
     assert IsInvolutive(Z);
 
     // numberfields
@@ -719,7 +720,7 @@ procedure test_Alg_inv_extension()
     assert Epsilonness(A ! [1, 0]) eq 0;
 
     Q := Rationals();
-    Q := InvolutiveRing(Q);
+    Q := TrivialInvolutiveRing(Q);
     M := MatrixAlgebra(Q, 2);
     inv := map<M -> M | x :-> Transpose(x)>;
     M := InvolutiveAlgebra(M, inv);
@@ -827,7 +828,7 @@ procedure test_LocalRankOfSU()
     ind := LocalRankOfSU(N, Infinity());
 
     // test a well known case
-    Q := InvolutiveRing(Rationals());
+    Q := TrivialInvolutiveRing(Rationals());
     M := MatrixAlgebra(Q, 3);
     M := InvolutiveAlgebra(M, map<M -> M | x :-> Transpose(x) >);
     kind := Kind(M);

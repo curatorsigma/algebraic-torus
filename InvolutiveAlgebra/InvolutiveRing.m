@@ -151,7 +151,7 @@ function get_kind_of_involution(inv)
     error "Cannot determine the kind of this involution.";
 end function;
 
-intrinsic InvolutiveRing(ring::Rng) -> Rng
+intrinsic TrivialInvolutiveRing(ring::Rng) -> Rng
     {Add the trivial involution to ring.}
     ring`involution := map<ring -> ring | r :-> r>;
     ring`involutionKind := 1;
@@ -193,16 +193,8 @@ intrinsic InvolutiveRing(image_of_generator::FldNumElt) -> InvRng
     return InvolutiveRing(Parent(image_of_generator), image_of_generator);
 end intrinsic;
 
-intrinsic InvolutiveRing(field::FldFin : trivial:=false) -> InvRng
-    {Assign the only involution of field.
-    If trivial is true, get the trivial involution.
-    If trivial is false, get the nontrivial involution.}
-
-    if trivial then
-        field`involution := map<field -> field | x :-> x>;
-        field`involutionKind := 1;
-        return field;
-    end if;
+intrinsic InvolutiveRing(field::FldFin) -> InvRng
+    {Assign the only involution of field, if its degree is even.}
 
     power_of_frob, rem := Quotrem(Degree(field), 2);
     require rem eq 0 : "Only even-degree extensions have nontrivial involutions.";
@@ -212,14 +204,8 @@ intrinsic InvolutiveRing(field::FldFin : trivial:=false) -> InvRng
     return field;
 end intrinsic;
 
-intrinsic InvolutiveRing(field::FldCom : trivial:=false) -> FldCom
+intrinsic InvolutiveRing(field::FldCom) -> FldCom
     {Assign the complex conjugation as the involution.}
-    if trivial then
-        field`involution := map<field -> field | x :-> x>;
-        field`involutionKind := 1;
-        return field;
-    end if;
-
     field`involution := map<field -> field | x :-> Conjugate(x)>;
     field`involutionKind := 2;
     return field;
