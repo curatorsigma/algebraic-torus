@@ -716,3 +716,35 @@ function corresponding_irred(
     return false, 0;
 end function;
 
+/// cut everything after the nth decimal place
+///
+/// INPUTS
+///  FldReElt x
+///  RngIntElt n >= 0
+/// OUTPUTS
+///  FldReElt
+function cut_precision_to_n(x, n)
+    if x gt 0 then
+        return Parent(x) ! Floor(x * 10^n) / 10^n;
+    end if;
+    // smaller then 0 : need to invert sign before floor
+    return Parent(x) ! -Floor(-x * 10^n) / 10^n;
+end function;
+
+/// cut everything after the nth decimal place
+///
+/// INPUTS
+///  Mtrx[FldRe] matrix
+///  RngIntElt>=0
+/// OUTPUTS
+///  Mtrx[FldRe]
+function mtrx_cut_precision_to_n(matrix, n)
+    base_ring := BaseRing(Parent(matrix));
+    precision := Precision(base_ring);
+    res := Matrix(
+        [[base_ring ! (cut_precision_to_n(matrix[i,j], n))
+          : j in [1..NumberOfColumns(matrix)]]
+         : i in [1..NumberOfRows(matrix)]]);
+    assert Parent(res) eq Parent(matrix);
+    return res;
+end function;

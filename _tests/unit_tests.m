@@ -16,10 +16,22 @@ import "../core/primitives.m":
     cast_from_FldPad_to_RngLocA,
     coordinates_in_basis,
     find_isomorphism_type,
-    decomposition_but_works;
+    decomposition_but_works,
+    cut_precision_to_n,
+    mtrx_cut_precision_to_n;
 
 import "random_generators.m" :
     random_eps_hermitian_form;
+
+procedure test_precision_cuts()
+    RR := RealField(20);
+    x := RR ! 1234.13413675341;
+    assert cut_precision_to_n(x, 5) eq 1234.13413;
+
+    m := Matrix(RR, 2, 2, [[1.513, 9.15278], [3, 911.3]]);
+    res := mtrx_cut_precision_to_n(m, 2);
+    assert res eq Matrix(RR, 2, 2, [[1.51, 9.15], [3, 911.3]]);
+end procedure;
 
 procedure test_choose_elements()
     lists := [[1, 2, 3], [3], [1, 2], [4]];
@@ -958,6 +970,10 @@ procedure script()
 end procedure;
 
 procedure run_all_unit_tests()
+    print(">Do the precision cuts work properly?");
+    test_precision_cuts();
+    print(".Success.\n");
+
     print(">Does _choose_elements work properly?");
     test_choose_elements();
     print(".Success.\n");
