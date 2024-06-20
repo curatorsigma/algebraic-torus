@@ -724,11 +724,7 @@ end function;
 /// OUTPUTS
 ///  FldReElt
 function cut_precision_to_n(x, n)
-    if x gt 0 then
-        return Parent(x) ! Floor(x * 10^n) / 10^n;
-    end if;
-    // smaller then 0 : need to invert sign before floor
-    return Parent(x) ! -Floor(-x * 10^n) / 10^n;
+    return Parent(x) ! Truncate(x * 10^n) / 10^n;
 end function;
 
 /// cut everything after the nth decimal place
@@ -746,5 +742,39 @@ function mtrx_cut_precision_to_n(matrix, n)
           : j in [1..NumberOfColumns(matrix)]]
          : i in [1..NumberOfRows(matrix)]]);
     assert Parent(res) eq Parent(matrix);
+    return res;
+end function;
+
+/// GIVEN
+///     a real number x
+/// RETURN
+///     the best approximation to x as a integral fraction
+function fldreelt_to_fldratelt(x)
+    y := Sign(x) * x;
+    pre_decimals := Truncate(y);
+    post_decimals := y - pre_decimals;
+    n := Ceiling(Log(10, Max(pre_decimals, 1)));
+    return Sign(x) * (pre_decimals + Truncate(
+            Truncate(post_decimals * 10^Precision(post_decimals))
+            / 10^n)
+        * 10^n / 10^(Precision(post_decimals)));
+end function;
+
+/// GIVEN
+///     a real number x
+/// RETURN
+///     the best approximation to x as an integral fraction
+///     but then ignoring every post-decimal place after precision
+function fldreelt_to_fldratelt_truncated_at(x, precision)
+    rational := fldreelt_to_fldratelt(x);
+    return Truncate(rational * 10^precision) / 10^precision;
+end function;
+
+function mtrx_fldreelt_to_fldratelt_truncated_at(matrix, precision)
+    base_ring := BaseRing(Parent(matrix));
+    res := Matrix(
+        [[(fldreelt_to_fldratelt_truncated_at(matrix[i,j], precision))
+          : j in [1..NumberOfColumns(matrix)]]
+         : i in [1..NumberOfRows(matrix)]]);
     return res;
 end function;

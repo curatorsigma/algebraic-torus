@@ -8,7 +8,12 @@ import "constants.m" :
 import "characters.m" :
     ranks_of_irreds_at_prime;
 import "primitives.m":
-    left_reg_with_integral_basis;
+    left_reg_with_integral_basis,
+    cut_precision_to_n,
+    mtrx_cut_precision_to_n,
+    fldreelt_to_fldratelt,
+    mtrx_fldreelt_to_fldratelt_truncated_at,
+    fldreelt_to_fldratelt_truncated_at;
 
 // How many Decimal places should we forcibly ignore in the Minkowsky space?
 // The calcualtion of the log-valuations has some rounding in the last decimals,
@@ -188,11 +193,18 @@ end function;
 ///  List[sum_{sigma in character-definition} a_sigma log|sigma(xi)|_v : v in Infinite Places of Ehat]
 /// ASSUMPTIONS
 ///  Parent(character) eq GModule(G) {so that character can be reduced to a formal sum of roots, which are themselves the GSet of G}
-function s_minkowski_embedding_at_infinite_places(xi, character, G, valuation_data)
+function s_minkowski_embedding_at_infinite_places(
+        xi, character, G, valuation_data
+        : precision:=PRECISION_LOW,
+        Ehat:=false,
+        col_dat:=false)
     infinite_valuations, cpl_roots := Explode(valuation_data);
+    print("new infinite embedding");
+    print("cpl_roots");
+    print(cpl_roots);
 
     // the empty list to fill with the correct embedding data
-    embedding := [RealField(PRECISION_LOW) ! 0 : r in [1..#infinite_valuations]];
+    embedding := [RationalField() ! 0 : r in [1..#infinite_valuations]];
     eltseq_char := Eltseq(character);
     // these are the cosets of Gal(Ehat | base_field) defining the charactermodule
     cosets := GSet(Group(Parent(character)));
@@ -201,8 +213,16 @@ function s_minkowski_embedding_at_infinite_places(xi, character, G, valuation_da
     // select the correct entry based on sigma without recomputation
     possible_log_vals := [];
     for i in [1..#cpl_roots] do
+        // TODO remove:
+        // this is the image of xi, when E is embedded into CC via the i-th root
+        // problem: the places of Ehat correspond to (pairs) of complex roots of f_Ehat in Ehat
+        // and not to (pairs) of complex roots of f_E in Ehat, which is what we calculate here
+        // end TODO
         at_ith_root := &+[cpl_roots[i]^(j - 1) * Eltseq(xi)[j] : j in [1..Degree(Parent(xi))]];
-        Append(~possible_log_vals, Log(AbsoluteValue(at_ith_root)));
+        Append(~possible_log_vals,
+               fldreelt_to_fldratelt_truncated_at(
+                    Log(AbsoluteValue(at_ith_root)),
+                    precision));
     end for;
 
     for i in [1..Dimension(Parent(character))] do
@@ -213,6 +233,7 @@ function s_minkowski_embedding_at_infinite_places(xi, character, G, valuation_da
         // sigma is an element of G which is a representative of the coset
         // corresponding to the i-th basis element of Parent(character)
         sigma := cosets[i];
+        print(cosets[i]);
 
         log_vals := [];
         for tau in infinite_valuations do
@@ -223,6 +244,49 @@ function s_minkowski_embedding_at_infinite_places(xi, character, G, valuation_da
             embedding[place_index] +:= eltseq_char[i] * log_vals[place_index];
         end for;
     end for;
+    for x in embedding do
+        assert Truncate(x * 10^precision) eq x * 10^precision;
+    end for;
+
+
+    // TODO DEBUG
+    // calculate the embedding from places in Ehat as well and see how they differ
+    places := InfinitePlaces(Ehat);
+    inf_emb_man := [];
+    for p in places do
+        // berechne v_p(char(xi))
+        char_at_xi := _ApplyCharacter(character, xi, col_dat);
+        assert char_at_xi in Ehat;
+        Append(~inf_emb_man, Valuation(char_at_xi, p));
+    end for;
+
+    // We need to map the InfinitePlaces(Ehat) to these elements
+
+
+
+    // print("automatic without Ehat");
+    // print([Universe(inf_emb_man) ! x : x in embedding]);
+    // print("manual with Ehat");
+    // print(inf_emb_man);
+    // map the two - they contain almost the same elements, just in different order
+    mapping := [];
+    for xind in [1..#embedding] do
+        x := embedding[xind];
+        for yind in [1..#inf_emb_man] do
+            if yind in mapping then
+                continue yind;
+            end if;
+            y := inf_emb_man[yind];
+            if AbsoluteValue(x - y) le 10^(-6) then
+                Append(~mapping, yind);
+                continue xind;
+            end if;
+        end for;
+        Append(~mapping, 0);
+    end for;
+    print("mapping without Ehat -> with Ehat");
+    print(mapping);
+
     return embedding;
 end function;
 
@@ -241,7 +305,9 @@ end function;
 /// ASSUMPTIONS
 ///  prime must have good reduction in E, i.e.
 ///  IsSquarefree(PolynomialRing(GF(prime)) ! DefiningPolynomial(AbsoluteField(Parent(xi)))) MUST hold.
-function s_minkowski_embedding_at_finite_place(xi, character, G, prime, valuation_data)
+function s_minkowski_embedding_at_finite_place(
+            xi, character, G, prime, valuation_data
+            : precision:=PRECISION_LOW)
     assert IsSquarefree(PolynomialRing(GF(prime)) ! DefiningPolynomial(AbsoluteField(Parent(xi))));
     finite_valuations, padic_roots := Explode(valuation_data);
 
@@ -250,11 +316,11 @@ function s_minkowski_embedding_at_finite_place(xi, character, G, prime, valuatio
     for i in [1..#padic_roots] do
         at_ith_root := &+[padic_roots[i]^(j - 1) * Eltseq(xi)[j]
                           : j in [1..Degree(Parent(xi))]];
-        Append(~possible_log_vals, - Valuation(at_ith_root));
+        Append(~possible_log_vals, -Valuation(at_ith_root));
     end for;
 
     // the empty list to fill with the correct embedding data
-    embedding := [RealField(PRECISION_LOW) ! 0 : r in [1..#finite_valuations]];
+    embedding := [RationalField() ! 0 : r in [1..#finite_valuations]];
     eltseq_char := Eltseq(character);
     // these are the cosets of Gal(Ehat | base_field) defining the charactermodule
     cosets := GSet(Group(Parent(character)));
@@ -303,24 +369,133 @@ end function;
 ///  Since we do not know Ehat, we cannot calculate this scaling.
 ///  But because we only care about kernels and (co-)volumes are irrelevant for us,
 ///  this does not matter
-function s_minkowski_embedding(xi, char, set_of_places, G, valuation_data)
+function s_minkowski_embedding(
+        xi, char, set_of_places, G, valuation_data
+        : precision:=PRECISION_LOW,
+        Ehat:=false, col_dat:=false)
 
     // infinite places
-    embedding := s_minkowski_embedding_at_infinite_places(xi, char, G, valuation_data[0]);
+    embedding_inf := s_minkowski_embedding_at_infinite_places(
+        xi, char, G, valuation_data[0]
+        : precision:=precision + FORCED_PRECISION_LOSS,
+        Ehat:=Ehat, col_dat:=col_dat);
     // finite places
+
+
     for place in set_of_places do
         if IsInfinite(place) then
             continue place;
         end if;
         prime := Characteristic(ResidueClassField(place));
-        embedding cat:= s_minkowski_embedding_at_finite_place(
-            xi, char, G, prime, valuation_data[prime]);
+        embedding_fin := s_minkowski_embedding_at_finite_place(
+            xi, char, G, prime, valuation_data[prime]
+            : precision:=precision + FORCED_PRECISION_LOSS);
     end for;
+
     // throw away some precision
-    embedding := [Round(10^(PRECISION_LOW - FORCED_PRECISION_LOSS) * el)
-                  / 10^(PRECISION_LOW - FORCED_PRECISION_LOSS)
-                  : el in embedding];
-    return embedding;
+    embedding_inf := [Truncate(x * 10^precision) / 10^precision : x in embedding_inf];
+    embedding_fin := [Truncate(x * 10^precision) / 10^precision : x in embedding_fin];
+    embedding := embedding_inf cat embedding_fin;
+    for x in embedding do
+        assert Truncate(x * 10^precision) eq x * 10^precision;
+    end for;
+    return embedding, embedding_inf, embedding_fin;
+end function;
+
+
+function _embedding_at_single_character_fixed_precision(
+        base_char_index, E, X_E, OES_times_to_E, O_E_S_times,
+        G, set_of_places, valuation_data, precision : Ehat:=false, col_dat:=false)
+    // Inner function for lattice_at_single_character
+    //
+    // NOTES
+    //  this function DOES NOT return proven results
+    embs := [];
+    embs_inf := [];
+    embs_fin := [];
+    gen_index := 0;
+    for i in [1..#Generators(O_E_S_times)] do
+        if not Order(O_E_S_times.i) eq 0 then
+            continue i;
+        end if;
+        gen_index +:= 1;
+        embedding, embedding_inf, embedding_fin := s_minkowski_embedding(
+            E!OES_times_to_E(O_E_S_times.i),
+            X_E.base_char_index,
+            set_of_places,
+            G,
+            valuation_data
+            : precision := precision,
+            Ehat:=Ehat, col_dat:=col_dat);
+        Append(~embs, Vector(#embedding, embedding));
+        Append(~embs_inf, Vector(#embedding_inf, embedding_inf));
+        Append(~embs_fin, Vector(#embedding_fin, embedding_fin));
+    end for;
+    return embs, embs_inf, embs_fin;
+end function;
+
+function lattice_at_single_character(
+        base_char_index, E, X_E, OES_times_to_E, O_E_S_times,
+        G, set_of_places, valuation_data: Ehat:=false, col_dat:=false)
+    // Calculate the Image lattice of a single character
+    //
+    // NOTES
+    //  This function return proven results
+    //  in particular, it abstracts away handling of machine error
+
+    try_precision := PRECISION_LOW;
+    while true do
+        // TODO rename this; emb is a terrible name
+        emb, emb_inf, emb_fin := _embedding_at_single_character_fixed_precision(
+            base_char_index, E, X_E, OES_times_to_E, O_E_S_times,
+            G, set_of_places, valuation_data, try_precision + FORCED_PRECISION_LOSS
+            : Ehat:=Ehat, col_dat:=col_dat);
+
+        // now try to prove the result
+        m := Matrix(emb);
+        basis, trafo, rank := LLL(m);
+        // throw away precision from basis - it is calculated
+        // using float multiplication, but we need it later to create a lattice
+        tmp := 10^try_precision * basis;
+        floored_basis := Matrix([
+            [
+                Truncate(tmp[i][j]) / 10^try_precision
+                : j in [1..NumberOfColumns(tmp)]
+            ]
+            : i in [1..NumberOfRows(tmp)]
+        ]);
+
+        gram_schmidt := Orthogonalize(basis);
+        // note the cutoff after rank - all other rows
+        // correspond to elements of basis which are 0-rows
+        // - we do not care about these rows or their transforms
+        svp_lower_bound := Minimum(
+            [&+[AbsoluteValue(gram_schmidt[i,j])
+                : j in [1..NumberOfColumns(gram_schmidt)]]
+             : i in [1..rank]]);
+        max_allowable_machine_error := svp_lower_bound / (2 * Maximum(
+            [&+[AbsoluteValue(trafo[i,j])
+                : j in [1..NumberOfColumns(trafo)]]
+             : i in [1..rank]]));
+
+        if 10^(-try_precision) lt max_allowable_machine_error then
+            floored_lat := Lattice(floored_basis);
+            lat := Lattice(basis);
+            // for every element of emb:
+            // get its integral decomp in lat and
+            // return the same element in floored_lat
+            floored_embs := [floored_lat |];
+            for image_of_gen in emb do
+                coordinates_in_lattice := Coordinates(lat ! image_of_gen);
+                Append(~floored_embs, &+[Basis(floored_lat)[i] * coordinates_in_lattice[i]
+                                         : i in [1..Dimension(floored_lat)]]);
+            end for;
+            return floored_lat, floored_embs, emb_inf, emb_fin;
+        end if;
+
+        // retry with higher precision
+        try_precision *:= 2;
+    end while;
 end function;
 
 /// Calculate the Lattice in S-Minkowski Space generated by images of characters
@@ -335,7 +510,8 @@ end function;
 ///  Lat: the complete S-minkowski lattice
 ///  GrpAb: S-Unit Group of E
 ///  Map[GrpAb, FldNum]: map from the s-units to E
-function image_lattice(E, set_of_places, G, X_E)
+function image_lattice(E, set_of_places, G, X_E
+        : debug_chars:=false, debug_col_dat:=false)
     places_in_E := [];
     for place in set_of_places do
         if IsInfinite(place) then
@@ -351,6 +527,7 @@ function image_lattice(E, set_of_places, G, X_E)
     O_E_S_times, S_units_to_E := SUnitGroup(
         [ideal<O | [E_abs ! x : x in Generators(el)]>
          : el in places_in_E]);
+    Ehat := NormalClosure(E_abs);
 
     // we calculate the valuations here to prevent recalculation later.
     // see the comments in s_minkowski_embedding_at_finite_place and ...infinite... for more details
@@ -370,29 +547,131 @@ function image_lattice(E, set_of_places, G, X_E)
     end for;
 
     // List[List[Images of all generators under one character] | character]
-    embs := [];
+    embs := [**];
+    embs_inf := [**];
+    embs_fin := [**];
     lattices := [];
     for base_char_index in [1..Dimension(X_E)] do
-        Append(~embs, []);
-        gen_index := 0;
-        for i in [1..#Generators(O_E_S_times)] do
-            if not Order(O_E_S_times.i) eq 0 then
-                continue i;
-            end if;
-            gen_index +:= 1;
-            embedding := s_minkowski_embedding(
-                E!S_units_to_E(O_E_S_times.i),
-                X_E.base_char_index,
-                set_of_places,
-                G,
-                valuation_data);
-
-            Append(~embs[base_char_index], Vector(#embedding, embedding));
-
-        end for;
-        base, _ := LLL(Matrix(embs[base_char_index]));
-        Append(~lattices, Lattice(base));
+        lattice, embs_at_bci, embs_at_bci_inf, embs_at_bci_fin := lattice_at_single_character(
+            base_char_index, E, X_E, S_units_to_E, O_E_S_times,
+            G, set_of_places, valuation_data
+            : Ehat:=Ehat, col_dat:=debug_col_dat);
+        Append(~embs, embs_at_bci);
+        Append(~embs_inf, embs_at_bci_inf);
+        Append(~embs_fin, embs_at_bci_fin);
+        Append(~lattices, lattice);
     end for;
+
+    matrices := [];
+    matrices_inf := [];
+    matrices_fin := [];
+    for character in debug_chars do
+        rows := [];
+        rows_inf := [];
+        rows_fin := [];
+        // each generator gets one row
+        for gen_index in [1..#embs[1]] do
+            // we need to add the contributions from all the base-characters
+            Append(~rows, Eltseq(
+                &+[Eltseq(character)[base_char_index] * embs[base_char_index][gen_index]
+                : base_char_index in [1..Dimension(Parent(character))]]
+            ));
+            Append(~rows_inf, Eltseq(
+                &+[Eltseq(character)[base_char_index] * embs_inf[base_char_index][gen_index]
+                : base_char_index in [1..Dimension(Parent(character))]]
+            ));
+            Append(~rows_fin, Eltseq(
+                &+[Eltseq(character)[base_char_index] * embs_fin[base_char_index][gen_index]
+                : base_char_index in [1..Dimension(Parent(character))]]
+            ));
+        end for;
+        Append(~matrices, Matrix(Rationals(), rows));
+        Append(~matrices_inf, Matrix(Rationals(), rows_inf));
+        Append(~matrices_fin, Matrix(Rationals(), rows_fin));
+    end for;
+
+    print("the kernels from the S-minkowski embedding");
+    for i in [1..#debug_chars] do
+    ker := [[RealField(30) ! x : x in Eltseq(el)] : el in Basis(Kernel(matrices[i]))];
+    ker_inf := [[RealField(30) ! x : x in Eltseq(el)] : el in Basis(Kernel(matrices_inf[i]))];
+    ker_fin := [[RealField(30) ! x : x in Eltseq(el)] : el in Basis(Kernel(matrices_fin[i]))];
+    print(<debug_chars[i],
+             ker,
+             ker_inf,
+             ker_fin
+            >
+    );
+    end for;
+
+
+    // get O_Ehat_S
+    Ohat := MaximalOrder(Ehat);
+    places_in_Ehat := [
+        Ideal(q[1])
+        : q in Decomposition(Ehat, Characteristic(ResidueClassField(place))), place in set_of_places];
+    O_Ehat_S_times, O_Ehat_S_to_Ehat := SUnitGroup(places_in_Ehat);
+
+
+    // print("DEBUG: the characters to kill");
+    // print(debug_chars);
+    // print("the subspaces spanned by each of these");
+    // print([sub<Universe(debug_chars) | el> : el in debug_chars]);
+    // print("the subspace spanned by all of them together");
+    // print(sub<Universe(debug_chars) | debug_chars>);
+    kill_as_s_unit := [X_E ! el : el in Basis(sub<Universe(debug_chars) | debug_chars>)];
+    killers_on_xs := [debug_col_dat`characterQuotientHom(el) : el in kill_as_s_unit];
+    // print("the characters to kill pushed into X_S");
+    // print(killers_on_xs);
+
+    // print("the basis of Image(characterQuotientHom) pulled into X_E");
+    X_S := Codomain(debug_col_dat`characterQuotientHom);
+    // print([X_E ! el : el in Basis(Kernel(debug_col_dat`characterQuotientHom))]);
+
+    // write out characters as hom<O_E_S_times -> O_Ehat_S>
+    chars_as_S_unit_maps := [];
+    for char in debug_chars do
+        Append(~chars_as_S_unit_maps,
+            hom<O_E_S_times -> O_Ehat_S_times |
+                SUnitDiscLog(
+                    O_Ehat_S_to_Ehat,
+                    [
+                        _ApplyCharacter(
+                            char,
+                            E ! S_units_to_E(O_E_S_times.i),
+                            debug_col_dat
+                            : Ehat:=Ehat)
+                        : i in [1..Ngens(O_E_S_times)]
+                    ],
+                    places_in_Ehat
+                )
+            >);
+    end for;
+    com_ker := &meet[Kernel(x) : x in chars_as_S_unit_maps];
+    // print("the common kernel on the s units");
+    // print(com_ker);
+    y := com_ker.2;
+    z := E ! S_units_to_E(y);
+
+
+    // NOTEs für morgen:
+    // probier mal, die S-minkowski-Einbettung per Hand mit Ehat auszurechnen
+    // (also stellen zerlegen, bewertungen ausrechnen)
+    // und vergleiche das
+    //  - mit valuation_data
+    //  - mit der Einbettung
+    // fällt irgendwas auf, was an der berechnung ohne Ehat falsch sein könnte?
+    // print("infinite places in Ehat");
+    // print(InfinitePlaces(Ehat));
+    // print("finite places in Ehat");
+    // print(places_in_Ehat);
+    // print("nacheinander die valuation-data ohne Ehat ausgerechnet");
+    // print("unendliche stelle");
+    // print(valuation_data[0]);
+    // for p in set_of_places do
+    //     prime := Characteristic(ResidueClassField(p));
+    //     printf "at %o\n", prime;
+    //     print(valuation_data[prime]);
+    // end for;
 
     return embs, &+lattices, O_E_S_times, S_units_to_E;
 end function;
@@ -449,7 +728,9 @@ end function;
 /// ASSUMPTIONS
 ///  The characters need to have a common zero in the S-Units
 ///  set_of_places must not contains finite places for which the reduction of DefiningPolynomial(E) is not squarefree
-function find_common_zero_of_characters(E, characters, set_of_places, G)
+function find_common_zero_of_characters(E, characters, set_of_places, collateral_data)
+    G := collateral_data`galoisGroupOverQ;
+
     if GetAssertions() ge 1 then
         f_E := DefiningPolynomial(AbsoluteField(E));
         for place in set_of_places do
@@ -462,7 +743,9 @@ function find_common_zero_of_characters(E, characters, set_of_places, G)
         E,
         set_of_places,
         G,
-        Parent(characters[1]));
+        Universe(characters)
+        : debug_chars:=characters,
+        debug_col_dat:=collateral_data);
 
     // I could not find any documentation about this, but magma seems to do *something*
     // to the lattice when printing it. This has always yielded better bases for our purposes
@@ -476,6 +759,8 @@ function find_common_zero_of_characters(E, characters, set_of_places, G)
     // but the shorter it is, the smaller the coefficients will be
     // and the more human readable the result
     shortest := ShortestVector(result_lattice);
+    print("got shortest vector:");
+    print(shortest);
 
     gen_index := 0;
     generator_in_E := 1;

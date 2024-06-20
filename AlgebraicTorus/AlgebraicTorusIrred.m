@@ -395,17 +395,19 @@ function calculate_characters_to_kill(A, irreds)
     characters_to_kill := [];
     // first calculate the characters defined by the quotient X_E to X_S
     // (they have to be killed to be in S)
-    for b in Basis(Kernel(A`collateralData`characterQuotientHom)) do
-        Append(~characters_to_kill, Domain(A`collateralData`characterQuotientHom) ! b);
-    end for;
+    X_E := Domain(A`collateralData`characterQuotientHom);
+    norm_character := X_E ! [1 : i in [1..Dimension(X_E)]];
+    Append(~characters_to_kill, norm_character);
 
     // now go over each other irreducible and add their characters
     // (if an element kills all characters of S except those belonging to A,
     //  that element lies in A)
+    irreds_to_kill := [];
     for irred in irreds do
         if IsIsomorphic(irred, A`characterModule) then
             continue irred;
         end if;
+        Append(~irreds_to_kill, irred);
         for b in Basis(irred) do
             // b is in the quotient. We need a representative in the Preimage
             // because we want to talk about elements of E,
@@ -418,6 +420,18 @@ function calculate_characters_to_kill(A, irreds)
             Append(~characters_to_kill, char_tmp);
         end for;
     end for;
+
+    print("the images to kill");
+    print(irreds_to_kill);
+    print("the subspace to kill in X_S");
+    to_kill := sub<Codomain(A`collateralData`characterQuotientHom) | irreds_to_kill>;
+    print(to_kill);
+    print("its preimage");
+    preim := Inverse(A`collateralData`characterQuotientHom)(to_kill);
+    print(preim);
+    print("Its basis");
+    print([Domain(A`collateralData`characterQuotientHom) ! el : el in Basis(preim)]);
+
     return characters_to_kill;
 end function;
 
@@ -494,6 +508,6 @@ intrinsic ArbitraryGenerator(A::AlgTorIrr
         AbsoluteField(A`extensionField),
         chars_to_kill,
         set_of_places,
-        A`collateralData`galoisGroupOverQ);
+        A`collateralData);
     return A`extensionField ! generator, set_of_places;
 end intrinsic;

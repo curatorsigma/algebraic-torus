@@ -760,6 +760,12 @@ function ranks_of_irreds_at_prime_ext(base_field, fixed_field, extension_field, 
                                                 descent(Gal_EFloc_BF_p)))]);
     end for;
 
+
+    // print("TODO DEBUG");
+    // e1moved := _ApplyCharacter(X_EF.1, extension_field.1, CharacterCollateralData(
+    //     Gal_EFhat_QQ, Gal_EFhat_BF, Gal_EFhat_EF, char_quotient, descent, roots));
+    // print(e1moved);
+
     return irreds, q_ranks, p_ranks, CharacterCollateralData(
         Gal_EFhat_QQ, Gal_EFhat_BF, Gal_EFhat_EF, char_quotient, descent, roots);
 end function;

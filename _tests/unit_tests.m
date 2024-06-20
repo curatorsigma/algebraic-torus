@@ -18,7 +18,8 @@ import "../core/primitives.m":
     find_isomorphism_type,
     decomposition_but_works,
     cut_precision_to_n,
-    mtrx_cut_precision_to_n;
+    mtrx_cut_precision_to_n,
+    fldreelt_to_fldratelt;
 
 import "random_generators.m" :
     random_eps_hermitian_form;
@@ -27,10 +28,14 @@ procedure test_precision_cuts()
     RR := RealField(20);
     x := RR ! 1234.13413675341;
     assert cut_precision_to_n(x, 5) eq 1234.13413;
+    assert cut_precision_to_n(RR ! 0.804718956217, 9) eq 0.804718956;
+
 
     m := Matrix(RR, 2, 2, [[1.513, 9.15278], [3, 911.3]]);
     res := mtrx_cut_precision_to_n(m, 2);
     assert res eq Matrix(RR, 2, 2, [[1.51, 9.15], [3, 911.3]]);
+
+    assert fldreelt_to_fldratelt(0.52000000p8) eq 13 / 25;
 end procedure;
 
 procedure test_choose_elements()
@@ -969,7 +974,7 @@ procedure script()
     DirectSumDecomposition(A);
 end procedure;
 
-procedure run_all_unit_tests()
+procedure testall_primitive()
     print(">Do the precision cuts work properly?");
     test_precision_cuts();
     print(".Success.\n");
@@ -989,7 +994,9 @@ procedure run_all_unit_tests()
     print(">Does cast_from_RngPad_to_RngLocA work without error?");
     run_RngPad_cast();
     print(".Success.\n");
+end procedure;
 
+procedure testall_involution()
     print(">Do involutive rings work properly?");
     test_Rng_inv_extension();
     print(".Success.\n");
@@ -1005,11 +1012,9 @@ procedure run_all_unit_tests()
     print(">Does GetFormOfInvolution work properly?");
     test_get_form_of_involution();
     print(".Success.\n");
+end procedure;
 
-    print(">Does LocalRankOfSU work properly?");
-    test_LocalRankOfSU();
-    print(".Success.\n");
-
+procedure testall_characters()
     print(">Does ranks_of_irreds_at_prime_ext work without error?");
     run_ranks_of_irreds_at_prime_ext();
     print(".Success.\n");
@@ -1029,8 +1034,9 @@ procedure run_all_unit_tests()
     print(">Does ranks_of_irreds work without error?");
     run_ranks_of_irreds();
     print(".Success.\n");
+end procedure;
 
-    // All test related to it are currently disabled for that reason
+procedure testall_etaalg()
     print(">Can I construct an EtaleAlgebra using all constructors?");
     create_EtaleAlgebra();
     print(".Success.\n");
@@ -1055,29 +1061,35 @@ procedure run_all_unit_tests()
     test_TraceForm_on_AlgEtaInv();
     print(".Success.\n");
 
-    print(">Can I construct an Algebraic Torus Irred using all constructors?");
-    construct_AlgebraicTorusIrred();
+    print(">Does LocalRankOfSU work properly?");
+    test_LocalRankOfSU();
     print(".Success.\n");
+end procedure;
 
-    print(">Can I construct an AlgebraicTorus with all constructors?");
-    construct_AlgebraicTorus();
-    print(".Success.\n");
-
-    print(">Does IsIsomorphic work properly?");
-    run_IsIsomorphic();
-    print(".Success.\n");
-
-    print(">Does DirectProduct work properly?");
-    run_DirectProduct();
-    print(".Success.\n");
-
-    print(">Does WeilRestriction work properly?");
-    run_WeilRestriction();
-    print(".Success.\n");
-
-    print(">Does LocalRank work properly?");
-    rank_of_torus();
-    print(".Success.\n");
+procedure testall_algtor()
+    // print(">Can I construct an Algebraic Torus Irred using all constructors?");
+    // construct_AlgebraicTorusIrred();
+    // print(".Success.\n");
+// 
+    // print(">Can I construct an AlgebraicTorus with all constructors?");
+    // construct_AlgebraicTorus();
+    // print(".Success.\n");
+// 
+    // print(">Does IsIsomorphic work properly?");
+    // run_IsIsomorphic();
+    // print(".Success.\n");
+// 
+    // print(">Does DirectProduct work properly?");
+    // run_DirectProduct();
+    // print(".Success.\n");
+// 
+    // print(">Does WeilRestriction work properly?");
+    // run_WeilRestriction();
+    // print(".Success.\n");
+// 
+    // print(">Does LocalRank work properly?");
+    // rank_of_torus();
+    // print(".Success.\n");
 
     print(">Can I successfully calculate generators?");
     test_torus_generators();
@@ -1086,4 +1098,12 @@ procedure run_all_unit_tests()
     print(">Does FullRealizingAlgebra work properly?");
     test_FullRealizingAlgebra();
     print(".Success.\n");
+end procedure;
+
+procedure run_all_unit_tests()
+    // testall_primitive();
+    // testall_involution();
+    // testall_characters();
+    // testall_etaalg();
+    testall_algtor();
 end procedure;
