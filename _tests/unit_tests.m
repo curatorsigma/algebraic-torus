@@ -943,6 +943,16 @@ procedure test_torus_generators()
     irred := torus`irreducibles[1];
     gen := ArbitraryGenerator(irred);
     assert gen in F;
+
+
+    // a complicated torus
+    K := NumberField(Polynomial([1, 0, 1]));
+    R<x> := PolynomialRing(K);
+    F := NumberField(x^3 - 2);
+    E := ext<F | x^2 - 7>;
+    torus := AlgebraicTorus(K, F, E);
+    gen := ArbitraryGenerator(torus`irreducibles[2]);
+    assert Norm(gen, F) eq 1;
 end procedure;
 
 procedure test_FullRealizingAlgebra()
@@ -1067,29 +1077,29 @@ procedure testall_etaalg()
 end procedure;
 
 procedure testall_algtor()
-    // print(">Can I construct an Algebraic Torus Irred using all constructors?");
-    // construct_AlgebraicTorusIrred();
-    // print(".Success.\n");
+//     print(">Can I construct an Algebraic Torus Irred using all constructors?");
+//     construct_AlgebraicTorusIrred();
+//     print(".Success.\n");
 // 
-    // print(">Can I construct an AlgebraicTorus with all constructors?");
-    // construct_AlgebraicTorus();
-    // print(".Success.\n");
+//     print(">Can I construct an AlgebraicTorus with all constructors?");
+//     construct_AlgebraicTorus();
+//     print(".Success.\n");
 // 
-    // print(">Does IsIsomorphic work properly?");
-    // run_IsIsomorphic();
-    // print(".Success.\n");
+//     print(">Does IsIsomorphic work properly?");
+//     run_IsIsomorphic();
+//     print(".Success.\n");
 // 
-    // print(">Does DirectProduct work properly?");
-    // run_DirectProduct();
-    // print(".Success.\n");
+//     print(">Does DirectProduct work properly?");
+//     run_DirectProduct();
+//     print(".Success.\n");
 // 
-    // print(">Does WeilRestriction work properly?");
-    // run_WeilRestriction();
-    // print(".Success.\n");
+//     print(">Does WeilRestriction work properly?");
+//     run_WeilRestriction();
+//     print(".Success.\n");
 // 
-    // print(">Does LocalRank work properly?");
-    // rank_of_torus();
-    // print(".Success.\n");
+//     print(">Does LocalRank work properly?");
+//     rank_of_torus();
+//     print(".Success.\n");
 
     print(">Can I successfully calculate generators?");
     test_torus_generators();

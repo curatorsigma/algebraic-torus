@@ -13,7 +13,8 @@ import "primitives.m":
     mtrx_cut_precision_to_n,
     fldreelt_to_fldratelt,
     mtrx_fldreelt_to_fldratelt_truncated_at,
-    fldreelt_to_fldratelt_truncated_at;
+    fldreelt_to_fldratelt_truncated_at,
+    relative_field_but_does_not_segfault;
 
 // How many Decimal places should we forcibly ignore in the Minkowsky space?
 // The calcualtion of the log-valuations has some rounding in the last decimals,
@@ -727,50 +728,89 @@ end function;
 ///  FldNumElt e in E^x on which all characters vanish and which is an S-Unit
 /// ASSUMPTIONS
 ///  The characters need to have a common zero in the S-Units
-///  set_of_places must not contains finite places for which the reduction of DefiningPolynomial(E) is not squarefree
 function find_common_zero_of_characters(E, characters, set_of_places, collateral_data)
     G := collateral_data`galoisGroupOverQ;
 
-    if GetAssertions() ge 1 then
-        f_E := DefiningPolynomial(AbsoluteField(E));
-        for place in set_of_places do
-            prime := Characteristic(ResidueClassField(place));
-            assert IsSquarefree(PolynomialRing(GF(prime)) ! f_E);
-        end for;
-    end if;
-
-    embs, minkowski_lattice, O_E_S_times, map := image_lattice(
-        E,
-        set_of_places,
-        G,
-        Universe(characters)
-        : debug_chars:=characters,
-        debug_col_dat:=collateral_data);
-
-    // I could not find any documentation about this, but magma seems to do *something*
-    // to the lattice when printing it. This has always yielded better bases for our purposes
-    _ := Sprint(minkowski_lattice);
-
-    common_matrix := calculate_characters_as_z_matrix(
-        characters, embs, minkowski_lattice);
-    common_kernel := Kernel(common_matrix);
-    result_lattice := Lattice(common_kernel);
-    // we just need any vector in the result_lattice
-    // but the shorter it is, the smaller the coefficients will be
-    // and the more human readable the result
-    shortest := ShortestVector(result_lattice);
-    print("got shortest vector:");
-    print(shortest);
-
-    gen_index := 0;
-    generator_in_E := 1;
-    for i in [1..#Generators(O_E_S_times)] do
-        if not Order(O_E_S_times.i) eq 0 then
-            continue i;
+    places_in_E := [];
+    for place in set_of_places do
+        if IsInfinite(place) then
+            continue place;
         end if;
-        gen_index +:= 1;
-        generator_in_E *:= E ! map(O_E_S_times.i * shortest[gen_index]);
+        p := Characteristic(ResidueClassField(place));
+        places_in_E cat:= [Ideal(el[1]) : el in Decomposition(E, p)
+                           | Extends(el[1], place)];
+    end for;
+    E_abs := AbsoluteField(E);
+    O := MaximalOrder(E_abs);
+    O_E_S_times, S_units_to_E := SUnitGroup(
+        [ideal<O | [E_abs ! x : x in Generators(el)]>
+         : el in places_in_E]);
+    Ehat := NormalClosure(E_abs);
+    Ohat := MaximalOrder(Ehat);
+    places_in_Ehat := [
+        Ideal(q[1])
+        : q in Decomposition(Ehat, Characteristic(ResidueClassField(place))), place in set_of_places];
+    O_Ehat_S_times, O_Ehat_S_to_Ehat := SUnitGroup(places_in_Ehat);
+
+    // write out characters as hom<O_E_S_times -> O_Ehat_S>
+    chars_as_S_unit_maps := [];
+    for char in characters do
+        chars_applied := [
+            _ApplyCharacter(
+                char,
+                E ! S_units_to_E(O_E_S_times.i),
+                collateral_data
+                : Ehat:=Ehat)
+            : i in [1..Ngens(O_E_S_times)]
+        ];
+        Append(~chars_as_S_unit_maps,
+            hom<O_E_S_times -> O_Ehat_S_times |
+                SUnitDiscLog(
+                    O_Ehat_S_to_Ehat,
+                    [
+                        _ApplyCharacter(
+                            char,
+                            E ! S_units_to_E(O_E_S_times.i),
+                            collateral_data
+                            : Ehat:=Ehat)
+                        : i in [1..Ngens(O_E_S_times)]
+                    ],
+                    places_in_Ehat
+                )
+            >);
     end for;
 
-    return generator_in_E;
+    com_ker := &meet[Kernel(x) : x in chars_as_S_unit_maps];
+
+    // print("TODO DEBUG");
+    // print(set_of_places);
+    // print("decomposition into Ehat");
+    // print([x[2] : x in Decomposition(Ehat, Characteristic(ResidueClassField(p))), p in set_of_places]);
+    // print("good reduction?");
+    // print([
+    //     Factorization(
+    //         PolynomialRing(GF(Characteristic(ResidueClassField(p)))) !
+    //         DefiningPolynomial(AbsoluteField(Ehat)))
+    //     : p in set_of_places
+    // ]);
+
+
+    for x in Generators(com_ker) do
+        if Order(x) eq 0 then
+            print("\n\n\n***********found generator");
+            print(E ! S_units_to_E(x));
+            print("at places");
+            print(set_of_places);
+            return E ! S_units_to_E(x);
+        end if;
+    end for;
+
+    "\n\n\n***********";
+    "\nBEGIN DEBUG OUTPUT";
+    E; characters; set_of_places; collateral_data;
+    com_ker; [Kernel(x) : x in chars_as_S_unit_maps];
+    // TODO
+    return false;
+    // END TODO
+    assert "No generator was found, even though all requirements were asserted" cmpeq false;
 end function;

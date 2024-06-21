@@ -194,19 +194,22 @@ intrinsic WeilRestriction(torus::AlgTorIrr, new_base_field::FldNum) -> AlgTor
     // the new module may be reducible. decompose it and create a new irreducible torus for each element
     irreds := Decomposition(new_module);
 
-    // we need to fudge the collateral data a bit
-    new_collateral_data := CharacterCollateralData(
-        torus`collateralData`galoisGroupOverQ,
-        galois_group_over_new,
-        galois_group_over_extension_field,
-        char_quotient,
-        descent,
-        torus`collateralData`roots);
     // we need to redefine the fields so that the tower is defined correctly
     _ := IsSubfield(new_base_field, torus`fixedField);
     new_fixed_field := RelativeField(new_base_field, torus`fixedField);
     _ := IsSubfield(new_fixed_field, torus`extensionField);
     new_extension_field := RelativeField(new_fixed_field, torus`extensionField);
+    // we need to fudge the collateral data a bit
+    new_collateral_data := CharacterCollateralData(
+        <restricted_torus`baseField,
+        new_fixed_field,
+        new_extension_field>,
+        <torus`collateralData`galoisGroupOverQ,
+        galois_group_over_new,
+        galois_group_over_extension_field>,
+        <char_quotient,
+        descent,
+        torus`collateralData`roots>);
 
     list_of_irreducibles := [];
     for irred_index in irreds do
@@ -412,25 +415,38 @@ function calculate_characters_to_kill(A, irreds)
             // b is in the quotient. We need a representative in the Preimage
             // because we want to talk about elements of E,
             // on which elements of X_E (not X_S) act
-            char_tmp := Domain(A`collateralData`characterQuotientHom)
-                ! Codomain(A`collateralData`characterQuotientHom)
-                ! b;
+            char_tmp := Inverse(A`collateralData`characterQuotientHom)(
+                Codomain(A`collateralData`characterQuotientHom)
+                ! b
+            );
             assert2 char_tmp in Domain(A`collateralData`characterQuotientHom);
             assert2 A`collateralData`characterQuotientHom(char_tmp) eq b;
             Append(~characters_to_kill, char_tmp);
         end for;
     end for;
 
-    print("the images to kill");
-    print(irreds_to_kill);
-    print("the subspace to kill in X_S");
-    to_kill := sub<Codomain(A`collateralData`characterQuotientHom) | irreds_to_kill>;
-    print(to_kill);
-    print("its preimage");
-    preim := Inverse(A`collateralData`characterQuotientHom)(to_kill);
-    print(preim);
-    print("Its basis");
-    print([Domain(A`collateralData`characterQuotientHom) ! el : el in Basis(preim)]);
+    // print("the images to kill");
+    // print(irreds_to_kill);
+    // print("the subspace to kill in X_S");
+    // to_kill := sub<Codomain(A`collateralData`characterQuotientHom) | irreds_to_kill>;
+    // print(to_kill);
+    // print("its preimage");
+    // preim := Inverse(A`collateralData`characterQuotientHom)(to_kill);
+    // print(preim);
+    // print("Its basis");
+    // print([Domain(A`collateralData`characterQuotientHom) ! el : el in Basis(preim)]);
+
+    // print("the characters to kill as calculated");
+    // print(characters_to_kill);
+    // print("their submodules");
+    // print([sub<Universe(characters_to_kill) | x> : x in characters_to_kill]);
+    // print("the subs of the characters to kill pushed to X_S");
+    // print([
+    //     sub<Codomain(A`collateralData`characterQuotientHom) |
+    //         A`collateralData`characterQuotientHom(x)>
+    //     : x in characters_to_kill
+    // ]);
+
 
     return characters_to_kill;
 end function;
@@ -444,13 +460,26 @@ intrinsic _GoodGeneratorPlace(A::AlgTorIrr) -> PlcNumElt
     while true do
         p := NextPrime(p);
         if not IsSquarefree(PolynomialRing(GF(p)) ! DefiningPolynomial(AbsoluteField(A`extensionField))) then
+            if p eq 17 then
+                print(p);
+                print("skipped because not square free");
+            end if;
             continue;
         end if;
         for place in Decomposition(A`baseField, p) do
+            print("does this place have rank?");
+            print(place);
+            print("in this torus?");
+            print(A`characterModule);
+            printf "the rank is: %o\n", LocalRank(A, place[1]);
             if LocalRank(A, place[1]) gt 0 then
                 return place[1];
             end if;
         end for;
+        if p eq 17 then
+            print(p);
+            print("skipped because no rank");
+        end if;
     end while;
 end intrinsic;
 
@@ -471,7 +500,7 @@ intrinsic ArbitraryGenerator(A::AlgTorIrr
     If set_of_places cmpeq or is an empty List/SeqEnum, the smallest prime unramified in
     A`extensionField is chosen instead.}
 
-    if GlobalRank(A) eq 1 then
+    if GlobalRank(A) gt 0 then
         return A`extensionField ! 2;
     end if;
 
@@ -498,16 +527,28 @@ intrinsic ArbitraryGenerator(A::AlgTorIrr
     end for;
     require _has_S_rank(A, set_of_places) : "The torus must have rank at the provided places.";
 
+    print("rank???");
+    for p in set_of_places do
+        printf "place: %o\n", p;
+        printf "irreds: %o\n", A`characterModule;
+        printf "rank: %o\n", LocalRank(A, p);
+    end for;
+
     irreds := Decomposition(Codomain(A`collateralData`characterQuotientHom));
     chars_to_kill := calculate_characters_to_kill(
         A,
         irreds);
     // Any common zero of these characters is in A
     // A is irreducible, so any of its elements of infinite order generates it
-    generator := find_common_zero_of_characters(
-        AbsoluteField(A`extensionField),
-        chars_to_kill,
-        set_of_places,
-        A`collateralData);
+    p := 3;
+    for i in [1..20] do
+        set_of_places := [Decomposition(A`baseField, p)[1][1]];
+        generator := find_common_zero_of_characters(
+            AbsoluteField(A`extensionField),
+            chars_to_kill,
+            set_of_places,
+            A`collateralData);
+        p := NextPrime(p);
+    end for;
     return A`extensionField ! generator, set_of_places;
 end intrinsic;

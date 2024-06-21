@@ -506,7 +506,8 @@ end function;
 ///  GrpPerm Gal(EFhat | FF) when the first return is true, 0 else
 ///  GrpPerm Gal(EFhat | EF) when the first return is true, 0 else
 ///     all the latter four returns are guaranteed to be subset Gal(EFhat | Q) iff the first return is true
-///  roots, on which Gal(EFhat | Q) acts naturally iff the first return is true, 0 else
+///  SeqEnum[FldElt] roots, on which Gal(EFhat | Q) acts naturally iff the first return is true, 0 else
+///  FldNum NormalClosure(AbsoluteField(EFhat)) iff the first return is true, 0 else
 /// NOTES
 ///  If the second output is false, the third and fourth are undefined and have no meaning.
 function local_galois_group_ram(
@@ -528,7 +529,7 @@ function local_galois_group_ram(
         G : OrderEqual:=#gal_EFp_over_BFp_on_roots);
     assert #subgroup_classes_of_correct_order ge 1;
     if #subgroup_classes_of_correct_order eq 1 then
-        return false, subgroup_classes_of_correct_order[1]`subgroup, 0, 0, 0, 0, 0;
+        return false, subgroup_classes_of_correct_order[1]`subgroup, 0, 0, 0, 0, 0, 0;
     end if;
 
     // second: get only the subgroups with correct S_n conjugacy class
@@ -540,7 +541,7 @@ function local_galois_group_ram(
     end for;
     assert #subgroup_classes_sn_conjugate ge 1;
     if #subgroup_classes_sn_conjugate eq 1 then
-        return false, subgroup_classes_sn_conjugate[1]`subgroup, 0, 0, 0, 0, 0;
+        return false, subgroup_classes_sn_conjugate[1]`subgroup, 0, 0, 0, 0, 0, 0;
     end if;
 
     // there are to many subgroup classes that could fit, so we have to actually
@@ -561,7 +562,7 @@ function local_galois_group_ram(
     end for;
     assert #subgroup_classes_acceptable_conjugacy_length ge 1;
     if #subgroup_classes_acceptable_conjugacy_length eq 1 then
-        return false, subgroup_classes_acceptable_conjugacy_length[1]`subgroup, 0, 0, 0, 0, 0;
+        return false, subgroup_classes_acceptable_conjugacy_length[1]`subgroup, 0, 0, 0, 0, 0, 0;
     end if;
 
     // select a random place in Ehat and calculate its decomposition group
@@ -589,7 +590,7 @@ function local_galois_group_ram(
     assert Gal_EFhat_BF subset Gal_EFhat_QQ;
     assert Gal_EFhat_FF subset Gal_EFhat_BF;
     assert Gal_EFhat_EF subset Gal_EFhat_FF;
-    return true, Gal_EFloc_BF_p, Gal_EFhat_QQ, Gal_EFhat_BF, Gal_EFhat_FF, Gal_EFhat_EF, roots;
+    return true, Gal_EFloc_BF_p, Gal_EFhat_QQ, Gal_EFhat_BF, Gal_EFhat_FF, Gal_EFhat_EF, roots, Ehat_abs;
 end function;
 
 /// place needs to be the one used to calculate G, roots, data
@@ -657,6 +658,7 @@ end function;
 ///  Gal(EFhat | FF) as a subgroup of G
 ///  Gal(EFhat | BF) as a subgroup of G
 ///  Gal(EFhat_p | BF_p) as a subgroup of G
+///  Option<EFhat> if that was calculated (0 otherwise)
 function get_all_galois_groups(base_field, fixed_field, extension_field, place
         : Prec:=PRECISION)
     p := Characteristic(ResidueClassField(place));
@@ -664,8 +666,10 @@ function get_all_galois_groups(base_field, fixed_field, extension_field, place
     // if p has good reduction, this is easy - short circuit.
     if IsSquarefree(PolynomialRing(GF(p)) !
             DefiningPolynomial(AbsoluteField(extension_field))) then
-        return get_all_galois_groups_unram(
-            base_field, fixed_field, extension_field, place : Prec:=Prec);
+        Gal_EFhat_QQ, Gal_EFhat_EF, Gal_EFhat_FF, Gal_EFhat_BF, Gal_EFloc_BF_p, roots_in_new :=
+            get_all_galois_groups_unram(
+                base_field, fixed_field, extension_field, place : Prec:=Prec);
+        return Gal_EFhat_QQ, Gal_EFhat_EF, Gal_EFhat_FF, Gal_EFhat_BF, Gal_EFloc_BF_p, roots_in_new, 0;
     end if;
 
     // we now know that p is ramified
@@ -681,7 +685,8 @@ function get_all_galois_groups(base_field, fixed_field, extension_field, place
                         AbsoluteField(extension_field)), x)) eq 0};
     assert2 #roots eq #Set(roots);
     // We need the local galois group for the local ranks
-    supergroup_recalc_done, Gal_EFloc_BF_p, Gal_EFhat_QQ, Gal_EFhat_BF, Gal_EFhat_FF, Gal_EFhat_EF, roots_with_natural_action :=
+    supergroup_recalc_done, Gal_EFloc_BF_p, Gal_EFhat_QQ, Gal_EFhat_BF,
+            Gal_EFhat_FF, Gal_EFhat_EF, roots_with_natural_action, Ehat_abs :=
         local_galois_group_ram(
             base_field, fixed_field, extension_field,
             place,
@@ -700,7 +705,7 @@ function get_all_galois_groups(base_field, fixed_field, extension_field, place
     assert Gal_EFloc_BF_p subset Gal_EFhat_BF;
     assert Gal_EFhat_FF subset Gal_EFhat_BF;
     assert Gal_EFhat_EF subset Gal_EFhat_FF;
-    return Gal_EFhat_QQ, Gal_EFhat_EF, Gal_EFhat_FF, Gal_EFhat_BF, Gal_EFloc_BF_p, roots_with_natural_action;
+    return Gal_EFhat_QQ, Gal_EFhat_EF, Gal_EFhat_FF, Gal_EFhat_BF, Gal_EFloc_BF_p, roots_with_natural_action, Ehat_abs;
 end function;
 
 /// Calculate the global and local ranks of L|K at p and the global irreds of the charactermodule
@@ -730,7 +735,7 @@ end function;
 function ranks_of_irreds_at_prime_ext(base_field, fixed_field, extension_field, place
                                       : Prec:=PRECISION)
 
-    Gal_EFhat_QQ, Gal_EFhat_EF, Gal_EFhat_FF, Gal_EFhat_BF, Gal_EFloc_BF_p, roots :=
+    Gal_EFhat_QQ, Gal_EFhat_EF, Gal_EFhat_FF, Gal_EFhat_BF, Gal_EFloc_BF_p, roots, EFhat :=
         get_all_galois_groups(base_field, fixed_field, extension_field, place : Prec:=Prec);
     descent, coset_action_group, _ := coset_action_but_actually_usable(
         Gal_EFhat_BF,
@@ -760,14 +765,13 @@ function ranks_of_irreds_at_prime_ext(base_field, fixed_field, extension_field, 
                                                 descent(Gal_EFloc_BF_p)))]);
     end for;
 
-
-    // print("TODO DEBUG");
-    // e1moved := _ApplyCharacter(X_EF.1, extension_field.1, CharacterCollateralData(
-    //     Gal_EFhat_QQ, Gal_EFhat_BF, Gal_EFhat_EF, char_quotient, descent, roots));
-    // print(e1moved);
-
-    return irreds, q_ranks, p_ranks, CharacterCollateralData(
-        Gal_EFhat_QQ, Gal_EFhat_BF, Gal_EFhat_EF, char_quotient, descent, roots);
+    col_dat := CharacterCollateralData(
+        <base_field, fixed_field, extension_field>,
+        <Gal_EFhat_QQ, Gal_EFhat_BF, Gal_EFhat_EF>, <char_quotient, descent, roots>);
+    if ISA(Type(EFhat), FldNum) then
+        col_dat`extensionFieldNormalClosure := EFhat;
+    end if;
+    return irreds, q_ranks, p_ranks, col_dat;
 end function;
 
 
@@ -796,7 +800,7 @@ end function;
 function ranks_of_irreds_at_prime_swap(base_field, fixed_field, place : Prec:=PRECISION)
     p := Characteristic(ResidueClassField(place));
 
-    Gal_FFhat_QQ, Gal_FFhat_FF, Gal_FFhat_FF, Gal_FFhat_BF, Gal_FFloc_BF_p, roots :=
+    Gal_FFhat_QQ, Gal_FFhat_FF, Gal_FFhat_FF, Gal_FFhat_BF, Gal_FFloc_BF_p, roots, FFhat :=
         get_all_galois_groups(base_field, fixed_field, fixed_field, place : Prec:=Prec);
     descent, coset_action_group, _ := coset_action_but_actually_usable(
         Gal_FFhat_BF,
@@ -820,8 +824,14 @@ function ranks_of_irreds_at_prime_swap(base_field, fixed_field, place : Prec:=PR
     end for;
 
     _, char_quotient := quo<X_FF | 0>;
-    return irreds, q_ranks, p_ranks, CharacterCollateralData(
-        Gal_FFhat_QQ, Gal_FFhat_BF, Gal_FFhat_FF, char_quotient, descent, roots);
+    col_dat := CharacterCollateralData(
+         <base_field, fixed_field, fixed_field>,
+         <Gal_FFhat_QQ, Gal_FFhat_BF, Gal_FFhat_FF>,
+         <char_quotient, descent, roots>);
+    if ISA(Type(FFhat), FldNum) then
+        col_dat`extensionFieldNormalClosure := FFhat;
+    end if;
+    return irreds, q_ranks, p_ranks, col_dat;
 end function;
 
 /// GIVEN
@@ -973,7 +983,9 @@ function ranks_of_irreds_at_infinity_ext(base_field, fixed_field, extension_fiel
     end for;
 
     return irreds, q_ranks, p_ranks, CharacterCollateralData(
-        G, Gal_EFhat_BF, Gal_EFhat_EF, char_quotient, descent, roots);
+        <base_field, fixed_field, extension_field>,
+        <G, Gal_EFhat_BF, Gal_EFhat_EF>,
+        <char_quotient, descent, roots>);
 end function;
 
 /// Calculate the global and local ranks of L|K at an infinite place
@@ -1031,7 +1043,9 @@ function ranks_of_irreds_at_infinity_swap(base_field, fixed_field, place : Prec:
 
     _, char_quotient := quo<X_FF | 0>;
     return irreds, q_ranks, p_ranks, CharacterCollateralData(
-        G, Gal_FFhat_BF, Gal_FFhat_FF, char_quotient, descent, roots);
+        <base_field, fixed_field, fixed_field>,
+        <G, Gal_FFhat_BF, Gal_FFhat_FF>,
+        <char_quotient, descent, roots>);
 end function;
 
 function ranks_of_irreds_at_place(base_field, fixed_field, extension_field, place : Prec:=PRECISION)
