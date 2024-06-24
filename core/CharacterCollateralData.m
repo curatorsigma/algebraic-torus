@@ -1,5 +1,6 @@
 import "primitives.m":
-    relative_field_but_does_not_segfault
+    relative_field_but_does_not_segfault,
+    galois_group_isomorphism
 ;
 
 declare type CharCollDat;
@@ -36,7 +37,10 @@ declare attributes CharCollDat :
     // roots of DefiningPolynomial(AbsoluteField(extension_field) | base_field) in extensionFieldNormalClosure
     extensionFieldRootsInNormalClosure,
     // the base characters of X_EF / X_FF lifted to Automorphisms of extensionFieldNormalClosure
-    baseCharsLiftedToEhatAutomorphisms
+    baseCharsLiftedToEhatAutomorphisms,
+
+    // iso galoisGroupOverQ -> AutomorphismGroup(extensionFieldNormalClosure)
+    abstractToRealizedGaloisGroup
 ;
 
 intrinsic Print(x::CharCollDat)
@@ -75,8 +79,8 @@ on  which the galois groups act.";
     characterQuotientHom, actionDescent, roots := Explode(dumb_input_3);
 
     // now do dumb type checks to ensure the function type is correct
-    require ISA(Type(baseField), FldNum) :
-        "the first element of the first tuple must be a numberfield (baseField)";
+    require ISA(Type(baseField), FldNum) or ISA(Type(baseField), FldRat) :
+        "the first element of the first tuple must be a numberfield or Rationals() (baseField)";
     require ISA(Type(fixedField), FldNum) :
         "the first element of the first tuple must be a numberfield (fixedField)";
     require ISA(Type(extensionField), FldNum) :
@@ -149,53 +153,32 @@ intrinsic _ApplyCharacter(
 
     if not assigned col_dat`extensionFieldNormalClosure then
         if assigned col_dat`galoisData then
-            Ehat := GaloisSplittingField(
+            col_dat`extensionFieldNormalClosure := GaloisSplittingField(
                 AbsoluteField(E) : Galois:=col_dat`galoisData);
-            col_dat`extensionFieldNormalClosure := relative_field_but_does_not_segfault(
-                col_dat`baseField,
-                Ehat);
         else
-            Ehat := NormalClosure(AbsoluteField(E));
-            col_dat`extensionFieldNormalClosure := relative_field_but_does_not_segfault(
-                col_dat`baseField,
-                Ehat);
+            col_dat`extensionFieldNormalClosure := NormalClosure(AbsoluteField(E));
         end if;
     end if;
 
-
-    if not assigned col_dat`extensionFieldRootsInNormalClosure then
-        col_dat`extensionFieldRootsInNormalClosure := [
-            el[1] : el in Roots(DefiningPolynomial(E_over_BF), col_dat`extensionFieldNormalClosure)
-        ];
-        auts_Ehat, _, iota_auts_Ehat := AutomorphismGroup(col_dat`extensionFieldNormalClosure);
-        col_dat`baseCharsLiftedToEhatAutomorphisms := [];
-        for i in [1..#coefficients] do
-            // X_E.i is an element of Gal(Ehat | BF) / Gal(Ehat | E)
-            // we now need it as an element of Gal(Ehat | QQ) that can act on e
-            auts_moving_r1_to_r := [];
-
-            for g in auts_Ehat do
-                if iota_auts_Ehat(g)(col_dat`extensionFieldRootsInNormalClosure[1])
-                        eq col_dat`extensionFieldRootsInNormalClosure[i] then
-                    Append(~auts_moving_r1_to_r, g);
-                end if;
-            end for;
-            assert #auts_moving_r1_to_r eq #col_dat`galoisGroupOverExtensionField;
-            Append(~col_dat`baseCharsLiftedToEhatAutomorphisms, iota_auts_Ehat(auts_moving_r1_to_r[1]));
-        end for;
+    if not assigned col_dat`abstractToRealizedGaloisGroup then
+        auts, _, iota := AutomorphismGroup(col_dat`extensionFieldNormalClosure);
+        iso := galois_group_isomorphism(
+            col_dat`galoisGroupOverQ,
+            auts, iota,
+            E, col_dat`extensionFieldNormalClosure);
+        col_dat`abstractToRealizedGaloisGroup := iso * iota;
     end if;
 
-    // we need the embedding along the first root, because that embedding was used to calculate
-    // the base character lifts
-    e_in_ehat := col_dat`extensionFieldNormalClosure ! &+[
-        Eltseq(E_over_BF ! e)[i] * col_dat`extensionFieldRootsInNormalClosure[1]^(i -1)
-        : i in [1..Degree(E_over_BF)]
-    ];
+    E_abs := AbsoluteField(E);
+
+    // the elements of col_dat`galoisGroupOverQ building a right-transversal over
+    // Gal(Ehat | E).
+    gs := GSet(Group(Parent(xi)));
+
     res := col_dat`extensionFieldNormalClosure ! &*[
-        col_dat`baseCharsLiftedToEhatAutomorphisms[i](e_in_ehat)^coefficients[i]
+        col_dat`abstractToRealizedGaloisGroup(gs[i])(E_abs ! e)^coefficients[i]
         : i in [1..Dimension(Parent(xi))]
     ];
 
-    printf "input: %o, character: %o, applied: %o\n\n", e, xi, Eltseq(res);
     return res;
 end intrinsic;

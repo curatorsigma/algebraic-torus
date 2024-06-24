@@ -398,9 +398,6 @@ function calculate_characters_to_kill(A, irreds)
     characters_to_kill := [];
     // first calculate the characters defined by the quotient X_E to X_S
     // (they have to be killed to be in S)
-    X_E := Domain(A`collateralData`characterQuotientHom);
-    norm_character := X_E ! [1 : i in [1..Dimension(X_E)]];
-    Append(~characters_to_kill, norm_character);
 
     // now go over each other irreducible and add their characters
     // (if an element kills all characters of S except those belonging to A,
@@ -425,29 +422,6 @@ function calculate_characters_to_kill(A, irreds)
         end for;
     end for;
 
-    // print("the images to kill");
-    // print(irreds_to_kill);
-    // print("the subspace to kill in X_S");
-    // to_kill := sub<Codomain(A`collateralData`characterQuotientHom) | irreds_to_kill>;
-    // print(to_kill);
-    // print("its preimage");
-    // preim := Inverse(A`collateralData`characterQuotientHom)(to_kill);
-    // print(preim);
-    // print("Its basis");
-    // print([Domain(A`collateralData`characterQuotientHom) ! el : el in Basis(preim)]);
-
-    // print("the characters to kill as calculated");
-    // print(characters_to_kill);
-    // print("their submodules");
-    // print([sub<Universe(characters_to_kill) | x> : x in characters_to_kill]);
-    // print("the subs of the characters to kill pushed to X_S");
-    // print([
-    //     sub<Codomain(A`collateralData`characterQuotientHom) |
-    //         A`collateralData`characterQuotientHom(x)>
-    //     : x in characters_to_kill
-    // ]);
-
-
     return characters_to_kill;
 end function;
 
@@ -460,26 +434,13 @@ intrinsic _GoodGeneratorPlace(A::AlgTorIrr) -> PlcNumElt
     while true do
         p := NextPrime(p);
         if not IsSquarefree(PolynomialRing(GF(p)) ! DefiningPolynomial(AbsoluteField(A`extensionField))) then
-            if p eq 17 then
-                print(p);
-                print("skipped because not square free");
-            end if;
             continue;
         end if;
         for place in Decomposition(A`baseField, p) do
-            print("does this place have rank?");
-            print(place);
-            print("in this torus?");
-            print(A`characterModule);
-            printf "the rank is: %o\n", LocalRank(A, place[1]);
             if LocalRank(A, place[1]) gt 0 then
                 return place[1];
             end if;
         end for;
-        if p eq 17 then
-            print(p);
-            print("skipped because no rank");
-        end if;
     end while;
 end intrinsic;
 
@@ -527,28 +488,14 @@ intrinsic ArbitraryGenerator(A::AlgTorIrr
     end for;
     require _has_S_rank(A, set_of_places) : "The torus must have rank at the provided places.";
 
-    print("rank???");
-    for p in set_of_places do
-        printf "place: %o\n", p;
-        printf "irreds: %o\n", A`characterModule;
-        printf "rank: %o\n", LocalRank(A, p);
-    end for;
-
     irreds := Decomposition(Codomain(A`collateralData`characterQuotientHom));
     chars_to_kill := calculate_characters_to_kill(
         A,
         irreds);
-    // Any common zero of these characters is in A
-    // A is irreducible, so any of its elements of infinite order generates it
-    p := 3;
-    for i in [1..20] do
-        set_of_places := [Decomposition(A`baseField, p)[1][1]];
-        generator := find_common_zero_of_characters(
-            AbsoluteField(A`extensionField),
-            chars_to_kill,
-            set_of_places,
-            A`collateralData);
-        p := NextPrime(p);
-    end for;
+    generator := find_common_zero_of_characters(
+        AbsoluteField(A`extensionField),
+        chars_to_kill,
+        set_of_places,
+        A`collateralData);
     return A`extensionField ! generator, set_of_places;
 end intrinsic;

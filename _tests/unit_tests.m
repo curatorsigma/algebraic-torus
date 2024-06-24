@@ -191,6 +191,9 @@ procedure run_ranks_of_irreds()
     if not Dimension(Codomain(collateral_data`characterQuotientHom)) gt 0 then
         error "Got a trivial module.";
     end if;
+    f := F.1^2 + 2 * F.1 - 3 * K.1;
+    X_E := Domain(collateral_data`characterQuotientHom);
+    assert Norm(f) eq _ApplyCharacter(X_E ! [1 : i in [1..Dimension(X_E)]], f, collateral_data);
 
     // Test that passing Infinity() and finite primes as places also works
     K := QuadraticField(-1);
@@ -888,7 +891,7 @@ procedure test_torus_generators()
     irred := torus`irreducibles[1];
     gen := ArbitraryGenerator(irred : set_of_places:=[Decomposition(K, 5)[1][1]]);
     assert gen in E;
-    assert Norm(gen, F) in [1, -1];
+    assert Norm(gen, F) eq 1;
 
     K := QNF(); // NumberField(Polynomial([1, 0, 1]));
     R<x> := PolynomialRing(K);
@@ -935,8 +938,8 @@ procedure test_torus_generators()
     gen := ArbitraryGenerator(irred);
     assert gen in E;
     // I would like to make more asserts here, but the result is not unique at all
-    // so this is very difficul aside from trivial asserts like this one:
-    assert Norm(gen, F) in [1, -1];
+    // so this is very difficult aside from trivial asserts like this one:
+    assert Norm(gen, F) eq 1;
 
     // // the swap-case
     torus := AlgebraicTorus(K, F, F : Prime:=13);
@@ -1077,29 +1080,29 @@ procedure testall_etaalg()
 end procedure;
 
 procedure testall_algtor()
-//     print(">Can I construct an Algebraic Torus Irred using all constructors?");
-//     construct_AlgebraicTorusIrred();
-//     print(".Success.\n");
-// 
-//     print(">Can I construct an AlgebraicTorus with all constructors?");
-//     construct_AlgebraicTorus();
-//     print(".Success.\n");
-// 
-//     print(">Does IsIsomorphic work properly?");
-//     run_IsIsomorphic();
-//     print(".Success.\n");
-// 
-//     print(">Does DirectProduct work properly?");
-//     run_DirectProduct();
-//     print(".Success.\n");
-// 
-//     print(">Does WeilRestriction work properly?");
-//     run_WeilRestriction();
-//     print(".Success.\n");
-// 
-//     print(">Does LocalRank work properly?");
-//     rank_of_torus();
-//     print(".Success.\n");
+    print(">Can I construct an Algebraic Torus Irred using all constructors?");
+    construct_AlgebraicTorusIrred();
+    print(".Success.\n");
+
+    print(">Can I construct an AlgebraicTorus with all constructors?");
+    construct_AlgebraicTorus();
+    print(".Success.\n");
+
+    print(">Does IsIsomorphic work properly?");
+    run_IsIsomorphic();
+    print(".Success.\n");
+
+    print(">Does DirectProduct work properly?");
+    run_DirectProduct();
+    print(".Success.\n");
+
+    print(">Does WeilRestriction work properly?");
+    run_WeilRestriction();
+    print(".Success.\n");
+
+    print(">Does LocalRank work properly?");
+    rank_of_torus();
+    print(".Success.\n");
 
     print(">Can I successfully calculate generators?");
     test_torus_generators();
@@ -1111,9 +1114,9 @@ procedure testall_algtor()
 end procedure;
 
 procedure run_all_unit_tests()
-    // testall_primitive();
-    // testall_involution();
-    // testall_characters();
-    // testall_etaalg();
+    testall_primitive();
+    testall_involution();
+    testall_characters();
+    testall_etaalg();
     testall_algtor();
 end procedure;

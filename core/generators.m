@@ -767,40 +767,33 @@ function find_common_zero_of_characters(E, characters, set_of_places, collateral
             hom<O_E_S_times -> O_Ehat_S_times |
                 SUnitDiscLog(
                     O_Ehat_S_to_Ehat,
-                    [
-                        _ApplyCharacter(
-                            char,
-                            E ! S_units_to_E(O_E_S_times.i),
-                            collateral_data
-                            : Ehat:=Ehat)
-                        : i in [1..Ngens(O_E_S_times)]
-                    ],
+                    chars_applied,
                     places_in_Ehat
                 )
             >);
     end for;
 
+    // manually add the norm to F, if extensionField and fixedField are not equal
+    if AbsoluteDegree(collateral_data`extensionField) gt AbsoluteDegree(collateral_data`fixedField) then
+        Append(~chars_as_S_unit_maps,
+            hom<O_E_S_times -> O_Ehat_S_times |
+                SUnitDiscLog(
+                    O_Ehat_S_to_Ehat,
+                    [
+                        Ehat !
+                        Norm(collateral_data`extensionField ! S_units_to_E(O_E_S_times.i),
+                             collateral_data`fixedField)
+                        : i in [1..Ngens(O_E_S_times)]
+                    ],
+                    places_in_Ehat
+                )
+            >);
+    end if;
+
     com_ker := &meet[Kernel(x) : x in chars_as_S_unit_maps];
-
-    // print("TODO DEBUG");
-    // print(set_of_places);
-    // print("decomposition into Ehat");
-    // print([x[2] : x in Decomposition(Ehat, Characteristic(ResidueClassField(p))), p in set_of_places]);
-    // print("good reduction?");
-    // print([
-    //     Factorization(
-    //         PolynomialRing(GF(Characteristic(ResidueClassField(p)))) !
-    //         DefiningPolynomial(AbsoluteField(Ehat)))
-    //     : p in set_of_places
-    // ]);
-
 
     for x in Generators(com_ker) do
         if Order(x) eq 0 then
-            print("\n\n\n***********found generator");
-            print(E ! S_units_to_E(x));
-            print("at places");
-            print(set_of_places);
             return E ! S_units_to_E(x);
         end if;
     end for;
@@ -809,8 +802,5 @@ function find_common_zero_of_characters(E, characters, set_of_places, collateral
     "\nBEGIN DEBUG OUTPUT";
     E; characters; set_of_places; collateral_data;
     com_ker; [Kernel(x) : x in chars_as_S_unit_maps];
-    // TODO
-    return false;
-    // END TODO
     assert "No generator was found, even though all requirements were asserted" cmpeq false;
 end function;

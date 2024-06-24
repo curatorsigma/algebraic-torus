@@ -778,3 +778,63 @@ function mtrx_fldreelt_to_fldratelt_truncated_at(matrix, precision)
          : i in [1..NumberOfRows(matrix)]]);
     return res;
 end function;
+
+/// Calculate an isomorphism from the locally calculated
+/// to the globally calculated Galois Group.
+///
+/// INPUTS
+///  GrpPerm G_local: GaloisGroup(E)
+///  SeqEnum[FldRngAElt] local_roots: roots G_local acts on naturally
+///  GrpPerm G_global: AutomorphismGroup(Ehat)
+///  Map global_to_auts: Map from G_global to literal automorphisms of Ehat
+///  FldNum E:
+///  FldNum Ehat: NormalClosure(E)
+/// OUTPUTS
+///  Map[G_local -> G_global] that is an isomorphism between the two groups
+function galois_group_isomorphism(
+        G_local, G_global, global_to_auts, E, Ehat)
+    glob_roots := [x[1] : x in Roots(DefiningPolynomial(AbsoluteField(E)), Ehat)];
+
+    auts_seq := [g : g in G_global];
+    auts_on_roots := [];
+    for g in auts_seq do
+        g_on_roots := [];
+        for i in [1..#glob_roots] do
+            j := Index(glob_roots, global_to_auts(g)(glob_roots[i]));
+            Append(~g_on_roots, j);
+        end for;
+        Append(~auts_on_roots, g_on_roots);
+    end for;
+    H := sub<Generic(G_local) | auts_on_roots>;
+
+    is_conj, conjugator := IsConjugate(Generic(G_local), G_local, H);
+    assert is_conj;
+
+    for h in H do
+        assert h^(conjugator^(-1)) in G_local;
+    end for;
+
+    G_local_seq := [g : g in G_local];
+    g_local_to_auts := [];
+    for h in G_local_seq do
+        for g in G_global do
+            assert Generic(H) ! auts_on_roots[Index(auts_seq, g)] in H;
+            assert (H ! auts_on_roots[Index(auts_seq, g)])^(conjugator^(-1)) in G_local;
+            // if you inline this variable in the if statement,
+            // the code sometimes breaks. good luck.
+            why_do_i_exist := (H ! auts_on_roots[Index(auts_seq, g)])^(conjugator^(-1));
+            assert why_do_i_exist in G_local;
+            assert IsCoercible(G_local, why_do_i_exist);
+            if h eq why_do_i_exist then
+                Append(~g_local_to_auts, g);
+                continue h;
+            end if;
+        end for;
+        assert false;
+    end for;
+    iso := map<
+        G_local -> G_global |
+        h :-> G_global ! g_local_to_auts[Index(G_local_seq, h)],
+        g :-> G_local ! (H ! auts_on_roots[Index(auts_seq, g)])^(conjugator^-1)>;
+    return iso;
+end function;
