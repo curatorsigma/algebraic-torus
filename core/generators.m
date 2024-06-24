@@ -8,13 +8,7 @@ import "constants.m" :
 import "characters.m" :
     ranks_of_irreds_at_prime;
 import "primitives.m":
-    left_reg_with_integral_basis,
-    cut_precision_to_n,
-    mtrx_cut_precision_to_n,
-    fldreelt_to_fldratelt,
-    mtrx_fldreelt_to_fldratelt_truncated_at,
-    fldreelt_to_fldratelt_truncated_at,
-    relative_field_but_does_not_segfault;
+    fldreelt_to_fldratelt_truncated_at;
 
 // How many Decimal places should we forcibly ignore in the Minkowsky space?
 // The calcualtion of the log-valuations has some rounding in the last decimals,

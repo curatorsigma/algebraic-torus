@@ -33,12 +33,6 @@ declare attributes CharCollDat :
     // Normal closure of AbsoluteField(extension_field), redefined over base_field
     extensionFieldNormalClosure,
 
-    // the following two are coupled and must be set at the same time
-    // roots of DefiningPolynomial(AbsoluteField(extension_field) | base_field) in extensionFieldNormalClosure
-    extensionFieldRootsInNormalClosure,
-    // the base characters of X_EF / X_FF lifted to Automorphisms of extensionFieldNormalClosure
-    baseCharsLiftedToEhatAutomorphisms,
-
     // iso galoisGroupOverQ -> AutomorphismGroup(extensionFieldNormalClosure)
     abstractToRealizedGaloisGroup
 ;
