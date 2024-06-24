@@ -583,7 +583,6 @@ procedure test_su_of_involution()
     assert IsInvolutive(alg);
 
     su := SUOfInvolutiveEtaleAlgebra(alg);
-    print(su);
 end procedure;
 
 procedure test_TraceForm_on_AlgEtaInv()
