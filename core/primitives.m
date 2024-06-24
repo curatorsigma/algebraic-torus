@@ -441,84 +441,6 @@ function extends_but_works(P, p)
     return Extends(P, p);
 end function;
 
-/// a version of Decomposition that has fewer wrong edge cases
-function decomposition_but_works(F, p)
-    assert ISA(Type(F), FldNum);
-    // PlcNumElt
-    if ISA(Type(p), PlcNumElt) then
-        // Trivial Case, no decomposition to calculate
-        if NumberField(p) eq F then
-            return [<p, 1>];
-        end if;
-
-        // The prime is finite
-        if IsFinite(p) then
-            prime := Characteristic(ResidueClassField(p));
-
-            // irrelevant BS start
-            // NB: We just want Decomposition(F, prime), but that sometimes bugs out.
-            // the following is a workaround.
-            // Please do not ask me how this works,
-            // I am not paid enough for this language.
-            // NB2: yes, this next line is literally required. I have no Idea, why or what this is doing.
-            // When F is the threefold trivial extension of Q by x - 1 and we don't redefine F
-            // with the next line, OptimizedRepresentation sometimes fails for no discernable reason.
-            why_is_this_necessary := ext<
-                BaseField(F) |
-                Polynomial(BaseField(F), Eltseq(DefiningPolynomial(F)))>;
-            some_dumb_field_we_should_not_need := AbsoluteField(why_is_this_necessary);
-            why_magma := OptimizedRepresentation(some_dumb_field_we_should_not_need);
-            _ := Decomposition(why_magma, prime);
-            // irrelevant BS end; this entire block is only used for undocumented sideeffects
-
-            decomp_of_raw_prime := Decomposition(F, prime);
-            res := [el : el in decomp_of_raw_prime | extends_but_works(el[1], p)];
-            assert #res ge 1;
-            return res;
-        end if;
-
-        // the prime is infinite - this is the only option left
-        assert IsInfinite(p);
-        assert NumberField(p) eq BaseField(F);
-        return Decomposition(F, p);
-    end if;
-
-    if ISA(Type(p), RngIntElt) then
-        assert IsPrime(p);
-        return Decomposition(F, p);
-    end if;
-
-    is_integer, prime := IsCoercible(Integers(), p);
-    if is_integer then
-        assert IsPrime(prime);
-        return Decomposition(F, prime);
-    end if;
-
-    if p cmpeq Infinity() then
-        if IsAbsoluteField(F) then
-            return Decomposition(F, Infinity());
-        else
-            decomp_to_bf := decomposition_but_works(BaseField(F), Infinity());
-            decomp_to_F := [];
-            for dec in decomp_to_bf do
-                single_decomp_to_F := decomposition_but_works(F, dec[1]);
-                decomp_to_F cat:= [<el[1], el[2] * dec[2]> : el in single_decomp_to_F];
-            end for;
-            for tup in decomp_to_F do
-                assert3 Type(tup[1]) eq PlcNumElt and NumberField(tup[1]) eq F;
-            end for;
-            return decomp_to_F;
-        end if;
-    end if;
-
-    F;
-    Type(F);
-    p;
-    Type(p);
-    "This place cannot be hit. Wrong input types?";
-    assert false;
-end function;
-
 /// Like Decomposition(PlcNumElt), but works for relative extensions
 function decomposition_group_but_works(place)
     L := NumberField(place);
@@ -716,35 +638,6 @@ function corresponding_irred(
     return false, 0;
 end function;
 
-/// cut everything after the nth decimal place
-///
-/// INPUTS
-///  FldReElt x
-///  RngIntElt n >= 0
-/// OUTPUTS
-///  FldReElt
-function cut_precision_to_n(x, n)
-    return Parent(x) ! Truncate(x * 10^n) / 10^n;
-end function;
-
-/// cut everything after the nth decimal place
-///
-/// INPUTS
-///  Mtrx[FldRe] matrix
-///  RngIntElt>=0
-/// OUTPUTS
-///  Mtrx[FldRe]
-function mtrx_cut_precision_to_n(matrix, n)
-    base_ring := BaseRing(Parent(matrix));
-    precision := Precision(base_ring);
-    res := Matrix(
-        [[base_ring ! (cut_precision_to_n(matrix[i,j], n))
-          : j in [1..NumberOfColumns(matrix)]]
-         : i in [1..NumberOfRows(matrix)]]);
-    assert Parent(res) eq Parent(matrix);
-    return res;
-end function;
-
 /// GIVEN
 ///     a real number x
 /// RETURN
@@ -768,15 +661,6 @@ end function;
 function fldreelt_to_fldratelt_truncated_at(x, precision)
     rational := fldreelt_to_fldratelt(x);
     return Truncate(rational * 10^precision) / 10^precision;
-end function;
-
-function mtrx_fldreelt_to_fldratelt_truncated_at(matrix, precision)
-    base_ring := BaseRing(Parent(matrix));
-    res := Matrix(
-        [[(fldreelt_to_fldratelt_truncated_at(matrix[i,j], precision))
-          : j in [1..NumberOfColumns(matrix)]]
-         : i in [1..NumberOfRows(matrix)]]);
-    return res;
 end function;
 
 /// Calculate an isomorphism from the locally calculated

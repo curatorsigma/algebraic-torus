@@ -277,7 +277,7 @@ function ranks_of_centraliser(sub_alg, full_alg, twist,
             / Dimension(K_realized));
         K := find_isomorphism_type(K_realized);
         for p in set_of_places do
-            ranks[p] +:= dimension * #decomposition_but_works(K, p);
+            ranks[p] +:= dimension * #Decomposition(K, p);
         end for;
     end for;
 
@@ -311,8 +311,8 @@ function ranks_of_centraliser(sub_alg, full_alg, twist,
         for p in set_of_places do
             // count the places of F which split in K
             res := #[p_fixed_field
-                : p_fixed_field in decomposition_but_works(fixed_field, p)
-                | #decomposition_but_works(K_rel, p_fixed_field[1]) gt 1];
+                : p_fixed_field in Decomposition(fixed_field, p)
+                | #Decomposition(K_rel, p_fixed_field[1]) gt 1];
             ranks[p] +:= res;
         end for;
     end for;

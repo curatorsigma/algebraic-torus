@@ -550,7 +550,7 @@ function local_galois_group_ram(
         DefiningPolynomial(AbsoluteField(extension_field))
         : Galois:=<G, roots, data>));
     Ehat := relative_field_but_does_not_segfault(base_field, Ehat_abs);
-    places_in_Ehat := decomposition_but_works(Ehat, place);
+    places_in_Ehat := Decomposition(Ehat, place);
 
     // Third: We can ignore subgroup classes whose number of G-conjugates
     // is not equal to the number of places
@@ -675,7 +675,7 @@ function get_all_galois_groups(base_field, fixed_field, extension_field, place
     // we now know that p is ramified
     p_unram := find_smallest_prime_with_good_reduction_in_field(
         AbsoluteField(extension_field));
-    place_unram := decomposition_but_works(base_field, p_unram)[1][1];
+    place_unram := Decomposition(base_field, p_unram)[1][1];
     // Get the global GaloisGroup over Q - at an unramified prime
     G, roots, data := GaloisGroup(
         AbsoluteField(extension_field) : Prime:=p_unram, Prec:=Prec);
@@ -1077,15 +1077,15 @@ function ranks_of_irreds_at_place(base_field, fixed_field, extension_field, plac
     if extension_is_swap_case then
         assert &+q_ranks eq 1;
         assert &+p_ranks le Degree(fixed_field, base_field);
-        dec := decomposition_but_works(fixed_field, place);
+        dec := Decomposition(fixed_field, place);
         assert &+p_ranks eq #dec;
     else
         assert &+q_ranks eq 0;
         assert &+p_ranks le Degree(extension_field, base_field) - 1;
-        dec_to_FF := decomposition_but_works(fixed_field, place);
+        dec_to_FF := Decomposition(fixed_field, place);
         if not &+p_ranks eq #[
             p : p in dec_to_FF
-              | #decomposition_but_works(extension_field, p[1]) ge 2] then
+              | #Decomposition(extension_field, p[1]) ge 2] then
             base_field; fixed_field; extension_field; irreds;
             error "p ranks are not equal to the number of places in F split in E.";
         end if;

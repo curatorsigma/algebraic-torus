@@ -17,24 +17,12 @@ import "../core/primitives.m":
     coordinates_in_basis,
     find_isomorphism_type,
     decomposition_but_works,
-    cut_precision_to_n,
-    mtrx_cut_precision_to_n,
     fldreelt_to_fldratelt;
 
 import "random_generators.m" :
     random_eps_hermitian_form;
 
 procedure test_precision_cuts()
-    RR := RealField(20);
-    x := RR ! 1234.13413675341;
-    assert cut_precision_to_n(x, 5) eq 1234.13413;
-    assert cut_precision_to_n(RR ! 0.804718956217, 9) eq 0.804718956;
-
-
-    m := Matrix(RR, 2, 2, [[1.513, 9.15278], [3, 911.3]]);
-    res := mtrx_cut_precision_to_n(m, 2);
-    assert res eq Matrix(RR, 2, 2, [[1.51, 9.15], [3, 911.3]]);
-
     assert fldreelt_to_fldratelt(0.52000000p8) eq 13 / 25;
 end procedure;
 
