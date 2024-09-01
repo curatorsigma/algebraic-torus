@@ -479,11 +479,6 @@ intrinsic NormalFormOfInvolution(algebra::AlgEta) -> List
         "Algebra must be involutive to calculate NormalFormOfInvolution.";
 
     global_fix := calculate_fixed_field_of_involution(algebra);
-    if global_fix ne BaseField(algebra) then
-        "have interesting global fix here";
-        print(global_fix);
-        print(BaseField(algebra));
-    end if;
 
     normal_form := [**];
     normalized_indices := [];

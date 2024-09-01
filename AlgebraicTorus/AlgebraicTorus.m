@@ -482,7 +482,7 @@ intrinsic LocalRank(torus::AlgTor, place::Any) -> RngIntElt
                 "The place can only be specified as a finite prime when the baseField is isomorphic to Q.";
             require IsPrime(place) :
                 "If given as a finite integer, the prime must be prime.";
-            place := decomposition_but_works(torus`baseField, Integers() ! place)[1][1];
+            place := Decomposition(torus`baseField, Integers() ! place)[1][1];
         else
             require false:
                 "the place may only be given as PlcNumElt, Infinity() or a finite prime.";
@@ -536,7 +536,7 @@ intrinsic GlobalRank(A::AlgTor) -> RngIntElt
     while true do
         p := NextPrime(p);
         if forall{irred : irred in A`irreducibles |
-                  &+[el[2] - 1 : el in decomposition_but_works(irred`extensionField, p)] eq 0} then
+                  &+[el[2] - 1 : el in Decomposition(irred`extensionField, p)] eq 0} then
             break;
         end if;
     end while;

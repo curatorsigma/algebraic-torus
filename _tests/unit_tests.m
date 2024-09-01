@@ -16,10 +16,15 @@ import "../core/primitives.m":
     cast_from_FldPad_to_RngLocA,
     coordinates_in_basis,
     find_isomorphism_type,
-    decomposition_but_works;
+    decomposition_but_works,
+    fldreelt_to_fldratelt;
 
 import "random_generators.m" :
     random_eps_hermitian_form;
+
+procedure test_precision_cuts()
+    assert fldreelt_to_fldratelt(0.52000000p8) eq 13 / 25;
+end procedure;
 
 procedure test_choose_elements()
     lists := [[1, 2, 3], [3], [1, 2], [4]];
@@ -174,6 +179,9 @@ procedure run_ranks_of_irreds()
     if not Dimension(Codomain(collateral_data`characterQuotientHom)) gt 0 then
         error "Got a trivial module.";
     end if;
+    f := F.1^2 + 2 * F.1 - 3 * K.1;
+    X_E := Domain(collateral_data`characterQuotientHom);
+    assert Norm(f) eq _ApplyCharacter(X_E ! [1 : i in [1..Dimension(X_E)]], f, collateral_data);
 
     // Test that passing Infinity() and finite primes as places also works
     K := QuadraticField(-1);
@@ -575,7 +583,6 @@ procedure test_su_of_involution()
     assert IsInvolutive(alg);
 
     su := SUOfInvolutiveEtaleAlgebra(alg);
-    print(su);
 end procedure;
 
 procedure test_TraceForm_on_AlgEtaInv()
@@ -871,7 +878,7 @@ procedure test_torus_generators()
     irred := torus`irreducibles[1];
     gen := ArbitraryGenerator(irred : set_of_places:=[Decomposition(K, 5)[1][1]]);
     assert gen in E;
-    assert Norm(gen, F) in [1, -1];
+    assert Norm(gen, F) eq 1;
 
     K := QNF(); // NumberField(Polynomial([1, 0, 1]));
     R<x> := PolynomialRing(K);
@@ -918,14 +925,24 @@ procedure test_torus_generators()
     gen := ArbitraryGenerator(irred);
     assert gen in E;
     // I would like to make more asserts here, but the result is not unique at all
-    // so this is very difficul aside from trivial asserts like this one:
-    assert Norm(gen, F) in [1, -1];
+    // so this is very difficult aside from trivial asserts like this one:
+    assert Norm(gen, F) eq 1;
 
     // // the swap-case
     torus := AlgebraicTorus(K, F, F : Prime:=13);
     irred := torus`irreducibles[1];
     gen := ArbitraryGenerator(irred);
     assert gen in F;
+
+
+    // a complicated torus
+    K := NumberField(Polynomial([1, 0, 1]));
+    R<x> := PolynomialRing(K);
+    F := NumberField(x^3 - 2);
+    E := ext<F | x^2 - 7>;
+    torus := AlgebraicTorus(K, F, E);
+    gen := ArbitraryGenerator(torus`irreducibles[2]);
+    assert Norm(gen, F) eq 1;
 end procedure;
 
 procedure test_FullRealizingAlgebra()
@@ -957,7 +974,11 @@ procedure script()
     DirectSumDecomposition(A);
 end procedure;
 
-procedure run_all_unit_tests()
+procedure testall_primitive()
+    print(">Do the precision cuts work properly?");
+    test_precision_cuts();
+    print(".Success.\n");
+
     print(">Does _choose_elements work properly?");
     test_choose_elements();
     print(".Success.\n");
@@ -973,7 +994,9 @@ procedure run_all_unit_tests()
     print(">Does cast_from_RngPad_to_RngLocA work without error?");
     run_RngPad_cast();
     print(".Success.\n");
+end procedure;
 
+procedure testall_involution()
     print(">Do involutive rings work properly?");
     test_Rng_inv_extension();
     print(".Success.\n");
@@ -989,11 +1012,9 @@ procedure run_all_unit_tests()
     print(">Does GetFormOfInvolution work properly?");
     test_get_form_of_involution();
     print(".Success.\n");
+end procedure;
 
-    print(">Does LocalRankOfSU work properly?");
-    test_LocalRankOfSU();
-    print(".Success.\n");
-
+procedure testall_characters()
     print(">Does ranks_of_irreds_at_prime_ext work without error?");
     run_ranks_of_irreds_at_prime_ext();
     print(".Success.\n");
@@ -1013,8 +1034,9 @@ procedure run_all_unit_tests()
     print(">Does ranks_of_irreds work without error?");
     run_ranks_of_irreds();
     print(".Success.\n");
+end procedure;
 
-    // All test related to it are currently disabled for that reason
+procedure testall_etaalg()
     print(">Can I construct an EtaleAlgebra using all constructors?");
     create_EtaleAlgebra();
     print(".Success.\n");
@@ -1039,6 +1061,12 @@ procedure run_all_unit_tests()
     test_TraceForm_on_AlgEtaInv();
     print(".Success.\n");
 
+    print(">Does LocalRankOfSU work properly?");
+    test_LocalRankOfSU();
+    print(".Success.\n");
+end procedure;
+
+procedure testall_algtor()
     print(">Can I construct an Algebraic Torus Irred using all constructors?");
     construct_AlgebraicTorusIrred();
     print(".Success.\n");
@@ -1070,4 +1098,12 @@ procedure run_all_unit_tests()
     print(">Does FullRealizingAlgebra work properly?");
     test_FullRealizingAlgebra();
     print(".Success.\n");
+end procedure;
+
+procedure run_all_unit_tests()
+    testall_primitive();
+    testall_involution();
+    testall_characters();
+    testall_etaalg();
+    testall_algtor();
 end procedure;

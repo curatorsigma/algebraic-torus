@@ -894,18 +894,18 @@ function local_witt_index_single_place_in_F(q, p)
         if IsSymmetric(q) then
             // form is symmetric. Calculate its index locally
             return &+[local_witt_index_K_place(q, P[1])
-                      : P in decomposition_but_works(K, p)];
+                      : P in Decomposition(K, p)];
         end if;
         // form is skew-symmetric. Its index is half the dimension
-        return NumberOfRows(q) / 2 * #decomposition_but_works(K, p);
+        return NumberOfRows(q) / 2 * #Decomposition(K, p);
     end if;
 
 
     // [L:K] = 2
     assert AbsoluteDegree(L) eq 2 * AbsoluteDegree(K);
     rank := 0;
-    for P_K_tup in decomposition_but_works(K, p) do
-        decomp_in_L := decomposition_but_works(L, P_K_tup[1]);
+    for P_K_tup in Decomposition(K, p) do
+        decomp_in_L := Decomposition(L, P_K_tup[1]);
         if #decomp_in_L eq 1 then
             // there is only a single place in L over P in K
             // [L_P : K_P] = 2 and q x K_w is still properly eps-hermitian wrt the involution of L_P|K_P

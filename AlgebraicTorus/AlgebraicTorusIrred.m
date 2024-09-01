@@ -194,19 +194,22 @@ intrinsic WeilRestriction(torus::AlgTorIrr, new_base_field::FldNum) -> AlgTor
     // the new module may be reducible. decompose it and create a new irreducible torus for each element
     irreds := Decomposition(new_module);
 
-    // we need to fudge the collateral data a bit
-    new_collateral_data := CharacterCollateralData(
-        torus`collateralData`galoisGroupOverQ,
-        galois_group_over_new,
-        galois_group_over_extension_field,
-        char_quotient,
-        descent,
-        torus`collateralData`roots);
     // we need to redefine the fields so that the tower is defined correctly
     _ := IsSubfield(new_base_field, torus`fixedField);
     new_fixed_field := RelativeField(new_base_field, torus`fixedField);
     _ := IsSubfield(new_fixed_field, torus`extensionField);
     new_extension_field := RelativeField(new_fixed_field, torus`extensionField);
+    // we need to fudge the collateral data a bit
+    new_collateral_data := CharacterCollateralData(
+        <restricted_torus`baseField,
+        new_fixed_field,
+        new_extension_field>,
+        <torus`collateralData`galoisGroupOverQ,
+        galois_group_over_new,
+        galois_group_over_extension_field>,
+        <char_quotient,
+        descent,
+        torus`collateralData`roots>);
 
     list_of_irreducibles := [];
     for irred_index in irreds do
@@ -395,29 +398,30 @@ function calculate_characters_to_kill(A, irreds)
     characters_to_kill := [];
     // first calculate the characters defined by the quotient X_E to X_S
     // (they have to be killed to be in S)
-    for b in Basis(Kernel(A`collateralData`characterQuotientHom)) do
-        Append(~characters_to_kill, Domain(A`collateralData`characterQuotientHom) ! b);
-    end for;
 
     // now go over each other irreducible and add their characters
     // (if an element kills all characters of S except those belonging to A,
     //  that element lies in A)
+    irreds_to_kill := [];
     for irred in irreds do
         if IsIsomorphic(irred, A`characterModule) then
             continue irred;
         end if;
+        Append(~irreds_to_kill, irred);
         for b in Basis(irred) do
             // b is in the quotient. We need a representative in the Preimage
             // because we want to talk about elements of E,
             // on which elements of X_E (not X_S) act
-            char_tmp := Domain(A`collateralData`characterQuotientHom)
-                ! Codomain(A`collateralData`characterQuotientHom)
-                ! b;
+            char_tmp := Inverse(A`collateralData`characterQuotientHom)(
+                Codomain(A`collateralData`characterQuotientHom)
+                ! b
+            );
             assert2 char_tmp in Domain(A`collateralData`characterQuotientHom);
             assert2 A`collateralData`characterQuotientHom(char_tmp) eq b;
             Append(~characters_to_kill, char_tmp);
         end for;
     end for;
+
     return characters_to_kill;
 end function;
 
@@ -457,7 +461,7 @@ intrinsic ArbitraryGenerator(A::AlgTorIrr
     If set_of_places cmpeq or is an empty List/SeqEnum, the smallest prime unramified in
     A`extensionField is chosen instead.}
 
-    if GlobalRank(A) eq 1 then
+    if GlobalRank(A) gt 0 then
         return A`extensionField ! 2;
     end if;
 
@@ -488,12 +492,10 @@ intrinsic ArbitraryGenerator(A::AlgTorIrr
     chars_to_kill := calculate_characters_to_kill(
         A,
         irreds);
-    // Any common zero of these characters is in A
-    // A is irreducible, so any of its elements of infinite order generates it
     generator := find_common_zero_of_characters(
         AbsoluteField(A`extensionField),
         chars_to_kill,
         set_of_places,
-        A`collateralData`galoisGroupOverQ);
+        A`collateralData);
     return A`extensionField ! generator, set_of_places;
 end intrinsic;

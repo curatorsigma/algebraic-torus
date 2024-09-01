@@ -441,84 +441,6 @@ function extends_but_works(P, p)
     return Extends(P, p);
 end function;
 
-/// a version of Decomposition that has fewer wrong edge cases
-function decomposition_but_works(F, p)
-    assert ISA(Type(F), FldNum);
-    // PlcNumElt
-    if ISA(Type(p), PlcNumElt) then
-        // Trivial Case, no decomposition to calculate
-        if NumberField(p) eq F then
-            return [<p, 1>];
-        end if;
-
-        // The prime is finite
-        if IsFinite(p) then
-            prime := Characteristic(ResidueClassField(p));
-
-            // irrelevant BS start
-            // NB: We just want Decomposition(F, prime), but that sometimes bugs out.
-            // the following is a workaround.
-            // Please do not ask me how this works,
-            // I am not paid enough for this language.
-            // NB2: yes, this next line is literally required. I have no Idea, why or what this is doing.
-            // When F is the threefold trivial extension of Q by x - 1 and we don't redefine F
-            // with the next line, OptimizedRepresentation sometimes fails for no discernable reason.
-            why_is_this_necessary := ext<
-                BaseField(F) |
-                Polynomial(BaseField(F), Eltseq(DefiningPolynomial(F)))>;
-            some_dumb_field_we_should_not_need := AbsoluteField(why_is_this_necessary);
-            why_magma := OptimizedRepresentation(some_dumb_field_we_should_not_need);
-            _ := Decomposition(why_magma, prime);
-            // irrelevant BS end; this entire block is only used for undocumented sideeffects
-
-            decomp_of_raw_prime := Decomposition(F, prime);
-            res := [el : el in decomp_of_raw_prime | extends_but_works(el[1], p)];
-            assert #res ge 1;
-            return res;
-        end if;
-
-        // the prime is infinite - this is the only option left
-        assert IsInfinite(p);
-        assert NumberField(p) eq BaseField(F);
-        return Decomposition(F, p);
-    end if;
-
-    if ISA(Type(p), RngIntElt) then
-        assert IsPrime(p);
-        return Decomposition(F, p);
-    end if;
-
-    is_integer, prime := IsCoercible(Integers(), p);
-    if is_integer then
-        assert IsPrime(prime);
-        return Decomposition(F, prime);
-    end if;
-
-    if p cmpeq Infinity() then
-        if IsAbsoluteField(F) then
-            return Decomposition(F, Infinity());
-        else
-            decomp_to_bf := decomposition_but_works(BaseField(F), Infinity());
-            decomp_to_F := [];
-            for dec in decomp_to_bf do
-                single_decomp_to_F := decomposition_but_works(F, dec[1]);
-                decomp_to_F cat:= [<el[1], el[2] * dec[2]> : el in single_decomp_to_F];
-            end for;
-            for tup in decomp_to_F do
-                assert3 Type(tup[1]) eq PlcNumElt and NumberField(tup[1]) eq F;
-            end for;
-            return decomp_to_F;
-        end if;
-    end if;
-
-    F;
-    Type(F);
-    p;
-    Type(p);
-    "This place cannot be hit. Wrong input types?";
-    assert false;
-end function;
-
 /// Like Decomposition(PlcNumElt), but works for relative extensions
 function decomposition_group_but_works(place)
     L := NumberField(place);
@@ -716,3 +638,87 @@ function corresponding_irred(
     return false, 0;
 end function;
 
+/// GIVEN
+///     a real number x
+/// RETURN
+///     the best approximation to x as a integral fraction
+function fldreelt_to_fldratelt(x)
+    y := Sign(x) * x;
+    pre_decimals := Truncate(y);
+    post_decimals := y - pre_decimals;
+    n := Ceiling(Log(10, Max(pre_decimals, 1)));
+    return Sign(x) * (pre_decimals + Truncate(
+            Truncate(post_decimals * 10^Precision(post_decimals))
+            / 10^n)
+        * 10^n / 10^(Precision(post_decimals)));
+end function;
+
+/// GIVEN
+///     a real number x
+/// RETURN
+///     the best approximation to x as an integral fraction
+///     but then ignoring every post-decimal place after precision
+function fldreelt_to_fldratelt_truncated_at(x, precision)
+    rational := fldreelt_to_fldratelt(x);
+    return Truncate(rational * 10^precision) / 10^precision;
+end function;
+
+/// Calculate an isomorphism from the locally calculated
+/// to the globally calculated Galois Group.
+///
+/// INPUTS
+///  GrpPerm G_local: GaloisGroup(E)
+///  SeqEnum[FldRngAElt] local_roots: roots G_local acts on naturally
+///  GrpPerm G_global: AutomorphismGroup(Ehat)
+///  Map global_to_auts: Map from G_global to literal automorphisms of Ehat
+///  FldNum E:
+///  FldNum Ehat: NormalClosure(E)
+/// OUTPUTS
+///  Map[G_local -> G_global] that is an isomorphism between the two groups
+function galois_group_isomorphism(
+        G_local, G_global, global_to_auts, E, Ehat)
+    glob_roots := [x[1] : x in Roots(DefiningPolynomial(AbsoluteField(E)), Ehat)];
+
+    auts_seq := [g : g in G_global];
+    auts_on_roots := [];
+    for g in auts_seq do
+        g_on_roots := [];
+        for i in [1..#glob_roots] do
+            j := Index(glob_roots, global_to_auts(g)(glob_roots[i]));
+            Append(~g_on_roots, j);
+        end for;
+        Append(~auts_on_roots, g_on_roots);
+    end for;
+    H := sub<Generic(G_local) | auts_on_roots>;
+
+    is_conj, conjugator := IsConjugate(Generic(G_local), G_local, H);
+    assert is_conj;
+
+    for h in H do
+        assert h^(conjugator^(-1)) in G_local;
+    end for;
+
+    G_local_seq := [g : g in G_local];
+    g_local_to_auts := [];
+    for h in G_local_seq do
+        for g in G_global do
+            assert Generic(H) ! auts_on_roots[Index(auts_seq, g)] in H;
+            assert (H ! auts_on_roots[Index(auts_seq, g)])^(conjugator^(-1)) in G_local;
+            // if you inline this variable in the if statement,
+            // the code sometimes breaks. good luck.
+            why_do_i_exist := (H ! auts_on_roots[Index(auts_seq, g)])^(conjugator^(-1));
+            assert why_do_i_exist in G_local;
+            assert IsCoercible(G_local, why_do_i_exist);
+            if h eq why_do_i_exist then
+                Append(~g_local_to_auts, g);
+                continue h;
+            end if;
+        end for;
+        assert false;
+    end for;
+    iso := map<
+        G_local -> G_global |
+        h :-> G_global ! g_local_to_auts[Index(G_local_seq, h)],
+        g :-> G_local ! (H ! auts_on_roots[Index(auts_seq, g)])^(conjugator^-1)>;
+    return iso;
+end function;
